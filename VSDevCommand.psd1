@@ -9,7 +9,7 @@
 @{
 
 # Script module or binary module file associated with this manifest.
-RootModule = '.\VSDevCommand.psm1'
+RootModule = 'VSDevCommand'
 
 # Version number of this module.
 ModuleVersion = '0.0.2'
@@ -91,11 +91,9 @@ AliasesToExport = '*'
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
 PrivateData = @{
-
     PSData = @{
-
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = @('MSBuild', 'VisualStudio', 'IDE', 'vsdevcmd', 'msbuild', 'ivdc', 'imb' )
+        Tags = @("MSBuild", "VisualStudio", "IDE", "vsdevcmd", "msbuild", "ivdc", "imb", "Invoke-MsBuild", "Invoke-Build", "Invoke-VsDevCommand", "ivb", "Build", "Developer Command Prompt" )
 
         # A URL to the license for this module.
         LicenseUri = 'https://github.com/vatsan-madhavan/VsDevCommand/blob/master/LICENSE'
@@ -113,13 +111,11 @@ PrivateData = @{
         # Prerelease = ''
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
-        RequireLicenseAcceptance = $false
+        # RequireLicenseAcceptance = 'false'
 
         # External dependent modules of this module
         # ExternalModuleDependencies = @()
-
     } # End of PSData hashtable
-
 } # End of PrivateData hashtable
 
 # HelpInfo URI of this module
