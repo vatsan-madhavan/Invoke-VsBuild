@@ -412,6 +412,8 @@ Set-Alias -Name vsdevcmd -Value Invoke-VsDevCommand
 
 Set-Alias -Name imb -Value Invoke-MsBuild
 Set-Alias -Name msbuild -Value Invoke-MsBuild
+Set-Alias -Name Invoke-Build -Value Invoke-MsBuild
+Set-Alias -Name ivb -Value Invoke-MsBuild
 
 
 
@@ -420,5 +422,7 @@ Export-ModuleMember -Alias ivdc
 Export-ModuleMember -Alias vsdevcmd
 
 Export-ModuleMember Invoke-MsBuild
+Export-ModuleMember -Alias Invoke-Build
 Export-ModuleMember -Alias imb
 Export-ModuleMember -Alias msbuild
+Export-ModuleMember -Alias ivb
