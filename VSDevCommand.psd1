@@ -98,13 +98,13 @@ PrivateData = @{
         Tags = @('MSBuild', 'VisualStudio', 'IDE', 'Invoke-VsDevCommand', 'Invoke-MsBuild', 'vsdevcmd', 'msbuild', 'ivdc', 'imb' )
 
         # A URL to the license for this module.
-        # LicenseUri = 'https://github.com/vatsan-madhavan/VsDevCommand/blob/master/LICENSE'
+        LicenseUri = 'https://github.com/vatsan-madhavan/VsDevCommand/blob/master/LICENSE'
 
         # A URL to the main website for this project.
-        # ProjectUri = ''
+        ProjectUri = 'https://github.com/vatsan-madhavan/VsDevCommand'
 
         # A URL to an icon representing this module.
-        # IconUri = 'ttps://github.com/vatsan-madhavan/VsDevCommand'
+        # IconUri = ''
 
         # ReleaseNotes of this module
         # ReleaseNotes = ''
@@ -113,7 +113,7 @@ PrivateData = @{
         # Prerelease = ''
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
-        # RequireLicenseAcceptance = $false
+        RequireLicenseAcceptance = $false
 
         # External dependent modules of this module
         # ExternalModuleDependencies = @()
