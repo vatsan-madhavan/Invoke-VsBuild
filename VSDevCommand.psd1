@@ -12,7 +12,7 @@
 RootModule = 'VSDevCommand'
 
 # Version number of this module.
-ModuleVersion = '0.0.3'
+ModuleVersion = '0.0.4'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -100,7 +100,7 @@ AliasesToExport = '*'
 PrivateData = @{
     PSData = @{
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = @("MSBuild", "VisualStudio", "IDE", "vsdevcmd", "msbuild", "ivdc", "imb", "Invoke-MsBuild", "Invoke-Build", "Invoke-VsDevCommand", "ivb", "Build", "Developer_Command_Prompt" )
+        Tags = @("Invoke-MsBuild", "MSBuild", "Invoke-VsDevCommand", "VisualStudio", "IDE", "vsdevcmd", "msbuild", "ivdc", "imb", "Invoke-Build", "ivb", "Build", "Developer_Command_Prompt" )
 
         # A URL to the license for this module.
         LicenseUri = 'https://github.com/vatsan-madhavan/VsDevCommand/blob/master/LICENSE'
