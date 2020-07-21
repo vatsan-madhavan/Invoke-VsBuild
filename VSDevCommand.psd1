@@ -12,7 +12,7 @@
 RootModule = 'VSDevCommand'
 
 # Version number of this module.
-ModuleVersion = '0.0.2'
+ModuleVersion = '0.0.3'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -33,10 +33,10 @@ Copyright = '(c) Vatsan Madhavan. All rights reserved.'
 Description = @'
 Enables applications/commands to run within VS Developer Command Prompt environment. 
 
-- `Invoke-VsDevCommand` function can run any application in the VS Developer Command Prompt
+- Invoke-VsDevCommand function can run any application in the VS Developer Command Prompt
   - It supports interactive execution mode for running cmd.exe, powershell.exe, pwsh.exe etc.  
-- `Invoke-MsBuild` runs msbuild.exe from withing VS Developer Command Prompt. 
-- `Invoke-VsDevCommand` and `Invoke-MsBuild` allow selection of Visual Studio environment by specifiying version, edition etc. Useful when multiple side-by-side installations of VS are present.
+- Invoke-MsBuild runs msbuild.exe from withing VS Developer Command Prompt. 
+- Invoke-VsDevCommand and Invoke-MsBuild allow selection of Visual Studio environment by specifiying version, edition etc. Useful when multiple side-by-side installations of VS are present.
 '@
 
 # Minimum version of the PowerShell engine required by this module
