@@ -1,0 +1,31 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  vmImage: 'windows-latest'
+
+steps:
+- task: PowerShell@2
+  inputs:
+    targetType: 'inline'
+    script: |
+      Install-Module -Name PSScriptAnalyzer -Scope User
+      Invoke-ScriptAnalyzer -Path VsDevCommand.psm1
+    failOnStderr: true
+    pwsh: true
+  name: PSScriptAnalyzer
+- task: PowerShell@2
+  inputs:
+    targetType: inline
+    script: |
+      Publish-Module -Path ".\VsDevCommand.psm1" -NugetAPIKey $(PSGallery.VSDevCommand.ApiKey) -Verbose
+    failOnStderr: true
+    pwsh: true
+  name: 'Publish_Module_to_PowerShell_Gallery'
+  condition: and(succeeded(), eq(variables['Publish'], true))
+
