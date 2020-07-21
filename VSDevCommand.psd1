@@ -24,19 +24,19 @@ GUID = 'b4a15ad7-81e0-4de0-af3e-1be715d8d6a9'
 Author = 'Vatsan Madhavan'
 
 # Company or vendor of this module
-CompanyName = 'Unknown'
+CompanyName = 'Vatsan Madhavan'
 
 # Copyright statement for this module
 Copyright = '(c) Vatsan Madhavan. All rights reserved.'
 
 # Description of the functionality provided by this module
-# Description = ''
+# Description = 'Enables applications/commands (including MSBuild) to run within VS Developer Command Prompt environment'
 
 # Minimum version of the PowerShell engine required by this module
 # PowerShellVersion = ''
 
 # Name of the PowerShell host required by this module
-# PowerShellHostName = 'Provides a function to run an application/command within VS Developer Command Prompt environment. Also provides a function to run MSBuild from within the VS Developer Command Prompt'
+# PowerShellHostName = ''
 
 # Minimum version of the PowerShell host required by this module
 # PowerShellHostVersion = ''
@@ -98,13 +98,13 @@ PrivateData = @{
         # Tags = @(MSBuild, VisualStudio, IDE)
 
         # A URL to the license for this module.
-        # LicenseUri = ''
+        # LicenseUri = 'https://github.com/vatsan-madhavan/VsDevCommand/blob/master/LICENSE'
 
         # A URL to the main website for this project.
         # ProjectUri = ''
 
         # A URL to an icon representing this module.
-        # IconUri = ''
+        # IconUri = 'ttps://github.com/vatsan-madhavan/VsDevCommand'
 
         # ReleaseNotes of this module
         # ReleaseNotes = ''
