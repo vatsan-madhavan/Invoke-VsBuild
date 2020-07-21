@@ -14,7 +14,7 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      Install-Module -Name PSScriptAnalyzer -Scope CurrentUser
+      Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
     failOnStderr: true
     pwsh: true
   name: Install_PSScriptAnalyzer
