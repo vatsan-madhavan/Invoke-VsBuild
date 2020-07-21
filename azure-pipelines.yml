@@ -32,7 +32,7 @@ steps:
   inputs:
     targetType: inline
     script: |
-      Publish-Module -Path ".\VsDevCommand.psm1" -NugetAPIKey $(PSGallery.VSDevCommand.ApiKey) -Verbose
+      Publish-Module -Path ".\" -NugetAPIKey $(PSGallery.VSDevCommand.ApiKey) -Verbose
     failOnStderr: true
     pwsh: true
   name: 'Publish_Module_to_PowerShell_Gallery'
