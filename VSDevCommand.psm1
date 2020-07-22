@@ -1,4 +1,11 @@
-﻿class VsDevCmd {
+﻿
+enum VersionMatchingRule {
+    ExactMatch;
+    Like;
+    NewestGreaterThan;
+}
+
+class VsDevCmd {
     hidden [System.Collections.Generic.Dictionary[string, string]]$SavedEnv = @{}
     static hidden [string] $vswhere = [VsDevCmd]::Initialize_VsWhere()
     hidden [string]$vsDevCmd
@@ -63,18 +70,19 @@
         return $downloadPath
     }
 
-    VsDevCmd() {
-        $this.vsDevCmd = [VsDevCmd]::GetVsDevCmdPath($null, $null, $null, $null)
-    }
+    # VsDevCmd() {
+    #     $this.vsDevCmd = [VsDevCmd]::GetVsDevCmdPath($null,[VersionMatchingRule]::Like, $null, $null, $null)
+    # }
 
     <#
-        [string] $productDisplayVersion,    # 16.8.0, 15.9.24 etc.
-        [string] $edition,                  # Professional, Enterprise etc.
-        [string] $productLineVersion,       # 2015, 2017, 2019 etc.
-        [string] $productLine) {            # Dev15, Dev16 etc.
+        [string] $productDisplayVersion,            # 16.8.0, 15.9.24 etc.
+        [VersionMatchingRule] $versionMatchingRule, # Rule to use to match $productDisplayVersion
+        [string] $edition,                          # Professional, Enterprise etc.
+        [string] $productLineVersion,               # 2015, 2017, 2019 etc.
+        [string] $productLine) {                    # Dev15, Dev16 etc.
     #>
-    VsDevCmd([string]$productDisplayVersion, [string]$edition, [string]$productLineVersion, [string] $productLine) {
-        $this.vsDevCmd = [VsDevCmd]::GetVsDevCmdPath($productDisplayVersion, $edition, $productLineVersion, $productLine)
+    VsDevCmd([string]$productDisplayVersion, [VersionMatchingRule] $versionMatchingRule, [string]$edition, [string]$productLineVersion, [string] $productLine) {
+        $this.vsDevCmd = [VsDevCmd]::GetVsDevCmdPath($productDisplayVersion, $versionMatchingRule, $edition, $productLineVersion, $productLine)
     }
 
     [void] hidden Update_EnvironmentVariable ([string] $Name, [string] $Value) {
@@ -99,12 +107,26 @@
         $this.SavedEnv.Clear()
     }
 
-    [string] hidden static GetVsDevCmdPath(
-        [string] $productDisplayVersion,    # 16.8.0, 15.9.24 etc.
-        [string] $edition,                  # Professional, Enterprise etc.
-        [string] $productLineVersion,       # 2015, 2017, 2019 etc.
-        [string] $productLine) {            # Dev15, Dev16 etc.
+    # Default matching rule for $productDisplayVersion is [VersionMatchingRule]::Like
+    # [string] hidden static GetVsDevCmdPath(
+    #     [string] $productDisplayVersion,    # 16.8.0, 15.9.24 etc.
+    #     [string] $edition,                  # Professional, Enterprise etc.
+    #     [string] $productLineVersion,       # 2015, 2017, 2019 etc.
+    #     [string] $productLine) {            # Dev15, Dev16 etc.
+    #         return [VsDevCmd].GetVsDevCmdPath(
+    #             $productDisplayVersion,
+    #             [VersionMatchingRule]::Like,
+    #             $edition, 
+    #             $productLineVersion, 
+    #             $productLine)
+    # }
 
+    [string] hidden static GetVsDevCmdPath(
+        [string] $productDisplayVersion,            # 16.8.0, 15.9.24 etc.
+        [VersionMatchingRule] $versionMatchingRule, # Rule to use to match $productDisplayVersion
+        [string] $edition,                          # Professional, Enterprise etc.
+        [string] $productLineVersion,               # 2015, 2017, 2019 etc.
+        [string] $productLine){                     # Dev15, Dev16 etc. 
             <#
                 productLineVersion  productLine
                 2015                Dev14
@@ -137,12 +159,6 @@
                 Get-Member -InputObject $_ -Name "catalog" -MemberType Properties
             }
 
-            if ($productDisplayVersion) {
-                $installations = $installations | Where-Object {
-                    $_.catalog.productDisplayVersion -ilike $productDisplayVersion
-                }
-            }
-
             if ($productLineVersion) {
                 $installations = $installations | Where-Object {
                     $_.catalog.productLineVersion -ieq $productLineVersion
@@ -155,17 +171,81 @@
                 }
             }
 
-            if ($productDisplayVersion) {
-                $installations = $installations | Where-Object {
-                    $_.catalog.productDisplayVersion -ilike $productDisplayVersion
-                }
-            }
-
             if ($edition) {
                 $installations = $installations | Where-Object {
                     $_.productId -ilike "*$edition"
                 }
             }
+
+            # Evaluate $productDisplayVersion last
+            if ($productDisplayVersion) {
+                switch ($versionMatchingRule) {
+                    'Like' {
+                        $installations = $installations | Where-Object {
+                            $_.catalog.productDisplayVersion -ilike $productDisplayVersion
+                        }
+                        Break;
+                    }
+                    'ExactMatch' {
+                        $installations = $installations | Where-Object {
+                            $_.catalog.productDisplayVersion -ieq $productDisplayVersion
+                        }
+                        Break;
+                    }
+
+                    'NewestGreaterThan'{
+                        # trim potential wildcard chars from the end before casting to version
+                        [version]$ver = $productDisplayVersion.TrimEnd("*.").Trim() -as [version]
+                        if ($ver) {
+                            # keep track of the maximum version; we'll need this later
+                            [version]$max = "0.0" -as [version]
+                            $installations = $installations | Where-Object {
+                                # productDisplayVersion could have strings lik e"16.8.0 preview 1" etc. 
+                                # split and extract just the numeric portion. 
+                                $versionParts = -split $_.catalog.productDisplayVersion
+                                [version]$productVersion = if ($versionParts -is [array]) { $versionParts[0] -as [version] } else { $versionParts -as [version] }
+                                
+                                # Update the maximum known version 
+                                if ($productVersion -and ($productVersion -ge $ver) -and ($productVersion -gt $max)) {
+                                    $max = $productVersion
+                                }
+
+                                $productVersion -and ($productVersion -ge $ver)
+                            }
+
+                            if ($max -gt ("0.0" -as [version])) {
+                                # Select the installation with the largest version 
+                                $installations = $installations | Where-Object {
+                                    # productDisplayVersion could have strings lik e"16.8.0 preview 1" etc. 
+                                    # split and extract just the numeric portion. 
+                                    $versionParts = -split $_.catalog.productDisplayVersion
+                                    [version]$productVersion = if ($versionParts -is [array]) { $versionParts[0] -as [version] } else { $versionParts -as [version] }
+                                    
+                                    $productVersion -eq $max
+                                }
+                            }
+                        } else {
+                            # $productDisplayVersion couldn't be interpreted as a float
+                            # fallback to [VersionMatchingRule]::Like
+                            $installations = $installations | Where-Object {
+                                $_.catalog.productDisplayVersion -ilike $productDisplayVersion
+                            }
+                        }
+
+                        Break;
+                    }
+
+                    Default {
+                        # Invalid rule
+                        # Default to [VersionMatchingRule]::Like
+                        $installations = $installations | Where-Object {
+                            $_.catalog.productDisplayVersion -ilike $productDisplayVersion
+                        }
+                    }
+                }
+            }
+
+
 
             [string]$installationPath = if ($installations -is [array]) { $installations[0].installationPath } else { $installations.installationPath }
 
@@ -284,6 +364,13 @@ function Invoke-VsDevCommand {
         [string]
         $VisualStudioBuildVersion = $null,
 
+        [Parameter(ParameterSetName='Default', Mandatory=$true, HelpMessage="Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [Parameter(ParameterSetName='CodeName', Mandatory=$true, HelpMessage="Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [ValidateSet('Like', 'ExactMatch', 'NewestGreaterThan')]
+        [CmdletBinding(PositionalBinding=$false)]
+        [string]
+        $VersionMatchingRule='Like',
+
         [Parameter(ParameterSetName='Default', HelpMessage='Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
         [Parameter(ParameterSetName='CodeName', HelpMessage='Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
         [CmdletBinding(PositionalBinding=$false)]
@@ -299,7 +386,7 @@ function Invoke-VsDevCommand {
             [string] $productLine) {            # Dev15, Dev16 etc.                 $VisualStudioCodeName
     #>
 
-    [VsDevCmd]::new($VisualStudioBuildVersion, $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName).Start_BuildCommand($Command, $Arguments, $Interactive)
+    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName).Start_BuildCommand($Command, $Arguments, $Interactive)
 
     <#
     .SYNOPSIS
@@ -327,6 +414,12 @@ function Invoke-VsDevCommand {
     .PARAMETER VisualStudioBuildVersion
         Selects Visual Studio Development Environment based on Build Version (e.g., "15.9.25", "16.8.0").
         A prefix is sufficient (e.g., "15", "15.9", "16" etc.)
+    .PARAMETER VersionMatchingRule
+        Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 
+        
+        - 'Like' (Default) is similar to powershells '-like' operator
+        - 'ExactMatch' looks for an exact version match
+        - 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)
     .PARAMETER Interactive
         Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment
     #>
@@ -369,6 +462,13 @@ function Invoke-MsBuild {
         [string]
         $VisualStudioBuildVersion = $null,
 
+        [Parameter(ParameterSetName='Default', Mandatory=$true, HelpMessage="Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [Parameter(ParameterSetName='CodeName', Mandatory=$true, HelpMessage="Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [ValidateSet('Like', 'ExactMatch', 'NewestGreaterThan')]
+        [CmdletBinding(PositionalBinding=$false)]
+        [string]
+        $VersionMatchingRule='Like',
+
         [Parameter(ParameterSetName='Default', HelpMessage='Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
         [Parameter(ParameterSetName='CodeName', HelpMessage='Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
         [CmdletBinding(PositionalBinding=$false)]
@@ -376,7 +476,7 @@ function Invoke-MsBuild {
         $Interactive
     )
 
-    [VsDevCmd]::new($VisualStudioBuildVersion, $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName).Start_BuildCommand('msbuild', $Arguments, $Interactive)
+    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule, $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName).Start_BuildCommand('msbuild', $Arguments, $Interactive)
 
     <#
     .SYNOPSIS
@@ -402,6 +502,12 @@ function Invoke-MsBuild {
     .PARAMETER VisualStudioBuildVersion
         Selects Visual Studio Development Environment based on Build Version (e.g., "15.9.25", "16.8.0").
         A prefix is sufficient (e.g., "15", "15.9", "16" etc.)
+    .PARAMETER VersionMatchingRule
+        Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 
+        
+        - 'Like' (Default) is similar to powershells '-like' operator
+        - 'ExactMatch' looks for an exact version match
+        - 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)
     .PARAMETER Interactive
         Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment
     #>
@@ -414,7 +520,6 @@ Set-Alias -Name imb -Value Invoke-MsBuild
 Set-Alias -Name msbuild -Value Invoke-MsBuild
 Set-Alias -Name Invoke-Build -Value Invoke-MsBuild
 Set-Alias -Name ivb -Value Invoke-MsBuild
-
 
 
 Export-ModuleMember Invoke-VsDevCommand
