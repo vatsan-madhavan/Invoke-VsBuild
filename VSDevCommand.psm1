@@ -340,7 +340,7 @@ function Invoke-VsDevCommand {
         [Parameter(ParameterSetName='CodeName', Mandatory = $false, HelpMessage='Selects Visual Studio Development Environment based on Edition (Community, Professional, Enterprise, etc.)')]
         [CmdletBinding(PositionalBinding=$false)]
         [Alias('Edition')]
-        [ValidateSet('Community', 'Professional', 'Enterprise', 'TeamExplorer', 'BuildTools', 'TestAgent', 'TestControler', '*')]        [string]
+        [ValidateSet('Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestControler', 'TestProfessional', 'FeedbackClient', '*')]        [string]
         $VisualStudioEdition = '*',
 
         [Parameter(ParameterSetName='Default', Mandatory = $false, HelpMessage='Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)')]
@@ -370,6 +370,12 @@ function Invoke-VsDevCommand {
         [CmdletBinding(PositionalBinding=$false)]
         [string]
         $VersionMatchingRule='Like',
+
+        [Parameter(ParameterSetName='Default', Mandatory=$false, HelpMessage="List of required components. See https://aka.ms/vs/workloads for list of workload ID's")]
+        [Parameter(ParameterSetName='CodeName', Mandatory=$false, HelpMessage="")]
+        [CmdletBinding(PositionalBinding=$false)]
+        [string[]]
+        $RequiredComponents,
 
         [Parameter(ParameterSetName='Default', HelpMessage='Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
         [Parameter(ParameterSetName='CodeName', HelpMessage='Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
@@ -407,7 +413,7 @@ function Invoke-VsDevCommand {
         Arguments to pass to Application/Command being executed
     .PARAMETER VisualStudioEdition
         Selects Visual Studio Development Environment based on Edition
-        Valid values are 'Community', 'Professional', 'Enterprise', 'TeamExplorer', 'BuildTools', 'TestAgent', 'TestControler', '*'
+        Valid values are 'Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestControler', 'TestProfessional', 'FeedbackClient', '*'
         Defaults to '*' (any edition)
     .PARAMETER VisualStudioVersion
         Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)
@@ -439,7 +445,7 @@ function Invoke-MsBuild {
         [Parameter(ParameterSetName='CodeName', Mandatory = $false, HelpMessage='Selects Visual Studio Development Environment based on Edition (Community, Professional, Enterprise, etc.)')]
         [CmdletBinding(PositionalBinding=$false)]
         [Alias('Edition')]
-        [ValidateSet('Community', 'Professional', 'Enterprise', 'TeamExplorer', 'BuildTools', 'TestAgent', 'TestControler', '*')]
+        [ValidateSet('Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestControler', 'TestProfessional', 'FeedbackClient', '*')]
         [string]
         $VisualStudioEdition = '*',
 
@@ -497,7 +503,7 @@ function Invoke-MsBuild {
         Arguments to pass to MSBuild
     .PARAMETER VisualStudioEdition
         Selects Visual Studio Development Environment based on Edition
-        Valid values are 'Community', 'Professional', 'Enterprise', 'TeamExplorer', 'BuildTools', 'TestAgent', 'TestControler', '*'
+        Valid values are 'Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestControler', 'TestProfessional', 'FeedbackClient', '*'
         Defaults to '*' (any edition)
     .PARAMETER VisualStudioVersion
         Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)
