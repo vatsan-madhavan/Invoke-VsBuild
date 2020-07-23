@@ -81,8 +81,8 @@ class VsDevCmd {
         [string] $productLineVersion,               # 2015, 2017, 2019 etc.
         [string] $productLine) {                    # Dev15, Dev16 etc.
     #>
-    VsDevCmd([string]$productDisplayVersion, [VersionMatchingRule] $versionMatchingRule, [string]$edition, [string]$productLineVersion, [string] $productLine) {
-        $this.vsDevCmd = [VsDevCmd]::GetVsDevCmdPath($productDisplayVersion, $versionMatchingRule, $edition, $productLineVersion, $productLine)
+    VsDevCmd([string]$productDisplayVersion, [VersionMatchingRule] $versionMatchingRule, [string]$edition, [string]$productLineVersion, [string] $productLine, [string[]]$requiredComponents) {
+        $this.vsDevCmd = [VsDevCmd]::GetVsDevCmdPath($productDisplayVersion, $versionMatchingRule, $edition, $productLineVersion, $productLine, $requiredComponents)
     }
 
     [void] hidden Update_EnvironmentVariable ([string] $Name, [string] $Value) {
@@ -126,7 +126,8 @@ class VsDevCmd {
         [VersionMatchingRule] $versionMatchingRule, # Rule to use to match $productDisplayVersion
         [string] $edition,                          # Professional, Enterprise etc.
         [string] $productLineVersion,               # 2015, 2017, 2019 etc.
-        [string] $productLine){                     # Dev15, Dev16 etc. 
+        [string] $productLine,                      # Dev15, Dev16 etc. 
+        [string[]] $requiredComponents){                    
             <#
                 productLineVersion  productLine
                 2015                Dev14
@@ -148,6 +149,13 @@ class VsDevCmd {
                 if ($productLineInfo[$productLineVersion] -ine $productLine) {
                     # error
                     throw New-Object System.ArgumentException("{productLineVersion{$productLineVersion}} and {productLine{$productLine}} are not mutually consistent; {productLine} should be {$productLineInfo[$productLineVersion]}", 'productLine')
+                }
+            }
+
+            # Validate that $requiredComponents is only specified when $productLineVersion >= 2017
+            if (($requiredComponents -and $requiredComponents.Length -gt 0) -and ($productLineVersion -or $productLine)) {
+                if (($productLineVersion -and ($productLineVersion -eq '2015')) -or ($productLine -and ($productLine -ieq 'Dev15'))) {
+                    throw New-Object System.ArgumentException("'requiredComponents' cannot be used when VS Version 2015/Dev15 is queried", 'requiredComponents')
                 }
             }
 
@@ -371,8 +379,8 @@ function Invoke-VsDevCommand {
         [string]
         $VersionMatchingRule='Like',
 
-        [Parameter(ParameterSetName='Default', Mandatory=$false, HelpMessage="List of required components. See https://aka.ms/vs/workloads for list of workload ID's")]
-        [Parameter(ParameterSetName='CodeName', Mandatory=$false, HelpMessage="")]
+        [Parameter(ParameterSetName='Default', Mandatory=$false, HelpMessage="List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's")]
+        [Parameter(ParameterSetName='CodeName', Mandatory=$false, HelpMessage="List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's")]
         [CmdletBinding(PositionalBinding=$false)]
         [string[]]
         $RequiredComponents,
@@ -392,7 +400,7 @@ function Invoke-VsDevCommand {
             [string] $productLine) {            # Dev15, Dev16 etc.                 $VisualStudioCodeName
     #>
 
-    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName).Start_BuildCommand($Command, $Arguments, $Interactive)
+    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand($Command, $Arguments, $Interactive)
 
     <#
     .SYNOPSIS
@@ -428,6 +436,8 @@ function Invoke-VsDevCommand {
         - 'Like' (Default) is similar to powershells '-like' operator
         - 'ExactMatch' looks for an exact version match
         - 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)
+    .PARAMETER RequiredComponents
+        List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's
     .PARAMETER Interactive
         Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment
     #>
@@ -477,6 +487,12 @@ function Invoke-MsBuild {
         [string]
         $VersionMatchingRule='Like',
 
+        [Parameter(ParameterSetName='Default', Mandatory=$false, HelpMessage="List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's")]
+        [Parameter(ParameterSetName='CodeName', Mandatory=$false, HelpMessage="List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's")]
+        [CmdletBinding(PositionalBinding=$false)]
+        [string[]]
+        $RequiredComponents,
+
         [Parameter(ParameterSetName='Default', HelpMessage='Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
         [Parameter(ParameterSetName='CodeName', HelpMessage='Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
         [CmdletBinding(PositionalBinding=$false)]
@@ -484,7 +500,7 @@ function Invoke-MsBuild {
         $Interactive
     )
 
-    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule, $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName).Start_BuildCommand('msbuild', $Arguments, $Interactive)
+    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule, $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand('msbuild', $Arguments, $Interactive)
 
     <#
     .SYNOPSIS
@@ -518,6 +534,8 @@ function Invoke-MsBuild {
         - 'Like' (Default) is similar to powershells '-like' operator
         - 'ExactMatch' looks for an exact version match
         - 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)
+    .PARAMETER RequiredComponents
+        List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's
     .PARAMETER Interactive
         Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment
     #>
