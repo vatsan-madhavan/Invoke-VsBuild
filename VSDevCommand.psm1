@@ -171,9 +171,10 @@ class VsDevCmd {
                 }
             }
 
-            if ($edition) {
+            if ($edition -and ($edition -ne '*')) {
+                [string]$productId = "Microsoft.VisualStudio.Product." + $edition.Trim()
                 $installations = $installations | Where-Object {
-                    $_.productId -ilike "*$edition"
+                    $_.productId.Trim() -ieq $productId
                 }
             }
 
@@ -339,9 +340,8 @@ function Invoke-VsDevCommand {
         [Parameter(ParameterSetName='CodeName', Mandatory = $false, HelpMessage='Selects Visual Studio Development Environment based on Edition (Community, Professional, Enterprise, etc.)')]
         [CmdletBinding(PositionalBinding=$false)]
         [Alias('Edition')]
-        [ValidateSet('Community', 'Professional', 'Enteprise', $null)]
-        [string]
-        $VisualStudioEdition = $null,
+        [ValidateSet('Community', 'Professional', 'Enterprise', 'TeamExplorer', 'BuildTools', 'TestAgent', 'TestControler', '*')]        [string]
+        $VisualStudioEdition = '*',
 
         [Parameter(ParameterSetName='Default', Mandatory = $false, HelpMessage='Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)')]
         [CmdletBinding(PositionalBinding=$false)]
@@ -364,8 +364,8 @@ function Invoke-VsDevCommand {
         [string]
         $VisualStudioBuildVersion = $null,
 
-        [Parameter(ParameterSetName='Default', Mandatory=$true, HelpMessage="Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
-        [Parameter(ParameterSetName='CodeName', Mandatory=$true, HelpMessage="Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [Parameter(ParameterSetName='Default', Mandatory=$false, HelpMessage="Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [Parameter(ParameterSetName='CodeName', Mandatory=$false, HelpMessage="Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
         [ValidateSet('Like', 'ExactMatch', 'NewestGreaterThan')]
         [CmdletBinding(PositionalBinding=$false)]
         [string]
@@ -406,7 +406,9 @@ function Invoke-VsDevCommand {
     .PARAMETER Arguments
         Arguments to pass to Application/Command being executed
     .PARAMETER VisualStudioEdition
-        Selects Visual Studio Development Environment based on Edition (Community, Professional, Enterprise, etc.)
+        Selects Visual Studio Development Environment based on Edition
+        Valid values are 'Community', 'Professional', 'Enterprise', 'TeamExplorer', 'BuildTools', 'TestAgent', 'TestControler', '*'
+        Defaults to '*' (any edition)
     .PARAMETER VisualStudioVersion
         Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)
     .PARAMETER VisualStudioCodename
@@ -437,9 +439,9 @@ function Invoke-MsBuild {
         [Parameter(ParameterSetName='CodeName', Mandatory = $false, HelpMessage='Selects Visual Studio Development Environment based on Edition (Community, Professional, Enterprise, etc.)')]
         [CmdletBinding(PositionalBinding=$false)]
         [Alias('Edition')]
-        [ValidateSet('Community', 'Professional', 'Enteprise', $null)]
+        [ValidateSet('Community', 'Professional', 'Enterprise', 'TeamExplorer', 'BuildTools', 'TestAgent', 'TestControler', '*')]
         [string]
-        $VisualStudioEdition = $null,
+        $VisualStudioEdition = '*',
 
         [Parameter(ParameterSetName='Default', Mandatory = $false, HelpMessage='Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)')]
         [CmdletBinding(PositionalBinding=$false)]
@@ -462,8 +464,8 @@ function Invoke-MsBuild {
         [string]
         $VisualStudioBuildVersion = $null,
 
-        [Parameter(ParameterSetName='Default', Mandatory=$true, HelpMessage="Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
-        [Parameter(ParameterSetName='CodeName', Mandatory=$true, HelpMessage="Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [Parameter(ParameterSetName='Default', Mandatory=$false, HelpMessage="Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [Parameter(ParameterSetName='CodeName', Mandatory=$false, HelpMessage="Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
         [ValidateSet('Like', 'ExactMatch', 'NewestGreaterThan')]
         [CmdletBinding(PositionalBinding=$false)]
         [string]
@@ -494,7 +496,9 @@ function Invoke-MsBuild {
     .PARAMETER Arguments
         Arguments to pass to MSBuild
     .PARAMETER VisualStudioEdition
-        Selects Visual Studio Development Environment based on Edition (Community, Professional, Enterprise, etc.)
+        Selects Visual Studio Development Environment based on Edition
+        Valid values are 'Community', 'Professional', 'Enterprise', 'TeamExplorer', 'BuildTools', 'TestAgent', 'TestControler', '*'
+        Defaults to '*' (any edition)
     .PARAMETER VisualStudioVersion
         Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)
     .PARAMETER VisualStudioCodename
