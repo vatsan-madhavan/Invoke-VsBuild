@@ -327,11 +327,11 @@ class VsDevCmd {
             }
         }
 
-        if (-not $install) {
+        if (-not $installs) {
             throw New-Object VisualStudioInstanceNotMatchedException 'No instance of Visual Studio matches all specified criteria'
         }
 
-        [string]$installationPath = if ($install -is [array]) { $installs[0].InstallationPath } else { $installs.InstallationPath }
+        [string]$installationPath = if ($installs -is [array]) { $installs[0].InstallationPath } else { $installs.InstallationPath }
 
         if ((-not $installationPath) -or (-not (test-path -Path $installationPath -PathType Container))) {
             throw New-Object VisualStudioInstanceNotMatchedException "Installation Path {$installationPath} Not Found"
