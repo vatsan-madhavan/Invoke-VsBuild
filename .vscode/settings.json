@@ -10,6 +10,7 @@
         "hashtable",
         "icontains",
         "ilike",
+        "inotcontains",
         "ivdc",
         "msbuild",
         "powershell's",
