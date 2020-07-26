@@ -783,8 +783,6 @@ function Invoke-VsBuild {
         [string]
         $Target = 'Build',
 
-        [Parameter(ParameterSetName = 'Default', HelpMessage = "Launch Visual Studio IDE")]
-        [Parameter(ParameterSetName = 'CodeName', HelpMessage = "Launch Visual Studio IDE")]
         [Parameter(ParameterSetName = 'IDEMode', HelpMessage = "Launch Visual Studio IDE")]
         [CmdletBinding(PositionalBinding=$false)]
         [switch]
