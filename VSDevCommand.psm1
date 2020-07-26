@@ -5,6 +5,32 @@ enum VersionMatchingRule {
     NewestGreaterThan;
 }
 
+class VsWhereNotFoundException : System.IO.FileNotFoundException {
+    VsWhereNotFoundException() : base('VsWhere not found') {}
+    VsWhereNotFoundException([string]$filename) : base('VsWhere not found', $filename) {}
+    VsWhereNotFoundException([string]$filename, [System.Exception]$inner): base('VsWhere not found', $filename, $inner) {}
+    VsWhereNotFoundException([System.Exception]$inner): base('VsWhere not found', 'VsWhere.exe', $inner) {}
+}
+
+class VisualStudioNotFoundException : System.Exception {
+    VisualStudioNotFoundException() {}
+    VisualStudioNotFoundException([string]$message) : base($message) {}
+    VisualStudioNotFoundException([string]$message, [System.Exception]$inner): base($message, $inner) {}
+}
+
+class VisualStudioInstanceNotMatchedException : System.Exception {
+    VisualStudioInstanceNotMatchedException() {}
+    VisualStudioInstanceNotMatchedException([string]$message) : base($message) {}
+    VisualStudioInstanceNotMatchedException([string]$message, [System.Exception]$inner): base($message, $inner) {}
+}
+
+class UserApplicationNotFoundException : System.ArgumentException {
+    UserApplicationNotFoundException() : base('Application not found') {}
+    UserApplicationNotFoundException([string]$paramName) : base('Application not found', $paramName) {}
+    UserApplicationNotFoundException([string] $paramName, [System.Exception]$inner): base('Application not found', $paramName, $inner) {}
+}
+
+
 class VsDevCmd {
     hidden [System.Collections.Generic.Dictionary[string, string]]$SavedEnv = @{}
     static hidden [string] $vswhere = [VsDevCmd]::Initialize_VsWhere()
@@ -23,13 +49,13 @@ class VsDevCmd {
         # If found, do not re-download.
 
         [string]$vswhereExe = 'vswhere.exe'
-        [string]$visualStudioIntallerPath = Join-Path "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\" $vswhereExe
+        [string]$visualStudioInstallerPath = Join-Path "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\" $vswhereExe
         [string]$downloadPath = Join-path $InstallDir $vswhereExe
         [string]$VsWhereTempPath = Join-Path $env:TEMP $vswhereExe
 
         # Look under VS Installer Path
-        if (Test-Path $visualStudioIntallerPath -PathType Leaf) {
-            return $visualStudioIntallerPath
+        if (Test-Path $visualStudioInstallerPath -PathType Leaf) {
+            return $visualStudioInstallerPath
         }
 
         # Look under $InstallDir
@@ -54,7 +80,8 @@ class VsDevCmd {
         }
 
         if (-not (Test-Path -Path $InstallDir -PathType Container)) {
-            throw New-Object System.ArgumentException -ArgumentList 'Directory could not be created', 'InstallDir'
+            $inner =  New-Object System.ArgumentException -ArgumentList 'Directory could not be created', 'InstallDir'
+            throw New-Object VsWhereNotFoundException -ArgumentList $inner
         }
 
         $vsWhereUri = 'https://github.com/microsoft/vswhere/releases/download/2.8.4/vswhere.exe'
@@ -165,7 +192,7 @@ class VsDevCmd {
             return [VsDevCmd]::GetProductInfo($installationsWithRequiredComponents)
         }
 
-        return $null
+        throw New-Object VisualStudioInstanceNotMatchedException 'No instances of Visual Studio containing all required components could be found'
     }
 
     # Default matching rule for $productDisplayVersion is [VersionMatchingRule]::Like
@@ -205,11 +232,13 @@ class VsDevCmd {
         if ($productLineVersion -and $productLine) {
             if (-not $productLineInfo.ContainsKey($productLineVersion)) {
                 # error
-                throw New-Object System.ArgumentOutOfRangeException 'productLineVersion'
+                $inner = New-Object System.ArgumentOutOfRangeException 'productLineVersion'
+                throw New-Object VisualStudioInstanceNotMatchedException -ArgumentList "productLineVersion {$productLineVersion} is invalid", $inner 
             }
             if ($productLineInfo[$productLineVersion] -ine $productLine) {
                 # error
-                throw New-Object System.ArgumentException("{productLineVersion{$productLineVersion}} and {productLine{$productLine}} are not mutually consistent; {productLine} should be {$productLineInfo[$productLineVersion]}", 'productLine')
+                $inner = System.ArgumentException("{productLineVersion{$productLineVersion}} and {productLine{$productLine}} are not mutually consistent; {productLine} should be {$productLineInfo[$productLineVersion]}", 'productLine')
+                throw New-Object VisualStudioInstanceNotMatchedException $inner.Message, $inner
             }
         }
 
@@ -298,11 +327,14 @@ class VsDevCmd {
             }
         }
 
+        if (-not $install) {
+            throw New-Object VisualStudioInstanceNotMatchedException 'No instance of Visual Studio matches all specified criteria'
+        }
 
         [string]$installationPath = if ($install -is [array]) { $installs[0].InstallationPath } else { $installs.InstallationPath }
 
         if ((-not $installationPath) -or (-not (test-path -Path $installationPath -PathType Container))) {
-            throw New-Object System.IO.DirectoryNotFoundException 'Installation Path Not found'
+            throw New-Object VisualStudioInstanceNotMatchedException "Installation Path {$installationPath} Not Found"
         }
 
         $vsDevCmdDir = Join-Path (Join-Path $installationPath 'Common7') 'Tools'
@@ -319,7 +351,7 @@ class VsDevCmd {
             return $vsDevCmdPath
         }
 
-        throw New-Object System.IO.FileNotFoundException "$vsDevCmdPath not found"
+        throw New-Object VisualStudioInstanceNotMatchedException "Visual Studio Developer Command Prompt Batch File {$vsDevCmdPath} path not found"
     }
 
     [void] hidden Start_VsDevCmd() {
@@ -348,7 +380,7 @@ class VsDevCmd {
 
             $cmdObject = Get-Command $Command -ErrorAction SilentlyContinue -CommandType Application
             if (-not $cmdObject) {
-                throw New-Object System.ArgumentException 'Application Not Found', $Command
+                throw New-Object UserApplicationNotFoundException $Command
             }
 
             [string] $cmd = if ($cmdObject -is [array]) { $cmdObject[0].Source } else { $cmdObject.Source }
@@ -393,7 +425,7 @@ function Invoke-VsDevCommand {
         [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Edition (Community, Professional, Enterprise, etc.)')]
         [CmdletBinding(PositionalBinding = $false)]
         [Alias('Edition')]
-        [ValidateSet('Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestControler', 'TestProfessional', 'FeedbackClient', '*')]        [string]
+        [ValidateSet('Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestController', 'TestProfessional', 'FeedbackClient', '*')]        [string]
         $VisualStudioEdition = '*',
 
         [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)')]
@@ -417,8 +449,8 @@ function Invoke-VsDevCommand {
         [string]
         $VisualStudioBuildVersion = $null,
 
-        [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = "Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
-        [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = "Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = "Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershell's '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = "Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershell's '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
         [ValidateSet('Like', 'ExactMatch', 'NewestGreaterThan')]
         [CmdletBinding(PositionalBinding = $false)]
         [string]
@@ -458,7 +490,7 @@ function Invoke-VsDevCommand {
     .INPUTS
         None. You cannot pipe objects to Invoke-VsDevCommand
     .OUTPUTS
-        System.String[]. Invoke-VsDevCommand returns an array of strings that rerpesents the output of executing the application/command
+        System.String[]. Invoke-VsDevCommand returns an array of strings that represents the output of executing the application/command
         with the given arguments
     .PARAMETER Command
         Application/Command to execute in the VS Developer Command Prompt Environment
@@ -466,7 +498,7 @@ function Invoke-VsDevCommand {
         Arguments to pass to Application/Command being executed
     .PARAMETER VisualStudioEdition
         Selects Visual Studio Development Environment based on Edition
-        Valid values are 'Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestControler', 'TestProfessional', 'FeedbackClient', '*'
+        Valid values are 'Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestController', 'TestProfessional', 'FeedbackClient', '*'
         Defaults to '*' (any edition)
     .PARAMETER VisualStudioVersion
         Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)
@@ -478,7 +510,7 @@ function Invoke-VsDevCommand {
     .PARAMETER VersionMatchingRule
         Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 
         
-        - 'Like' (Default) is similar to powershells '-like' operator
+        - 'Like' (Default) is similar to powershell's '-like' operator
         - 'ExactMatch' looks for an exact version match
         - 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)
     .PARAMETER RequiredComponents
@@ -500,7 +532,7 @@ function Invoke-MsBuild {
         [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Edition (Community, Professional, Enterprise, etc.)')]
         [CmdletBinding(PositionalBinding = $false)]
         [Alias('Edition')]
-        [ValidateSet('Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestControler', 'TestProfessional', 'FeedbackClient', '*')]
+        [ValidateSet('Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestController', 'TestProfessional', 'FeedbackClient', '*')]
         [string]
         $VisualStudioEdition = '*',
 
@@ -525,8 +557,8 @@ function Invoke-MsBuild {
         [string]
         $VisualStudioBuildVersion = $null,
 
-        [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = "Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
-        [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = "Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershells '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = "Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershell's '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = "Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershell's '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
         [ValidateSet('Like', 'ExactMatch', 'NewestGreaterThan')]
         [CmdletBinding(PositionalBinding = $false)]
         [string]
@@ -558,13 +590,13 @@ function Invoke-MsBuild {
     .INPUTS
         None. You cannot pipe objects to Invoke-VsDevCommand
     .OUTPUTS
-        System.String[]. Invoke-MsBuild returns an array of strings that rerpesents the output of executing MSBuild
+        System.String[]. Invoke-MsBuild returns an array of strings that represents the output of executing MSBuild
         with the given arguments
     .PARAMETER Arguments
         Arguments to pass to MSBuild
     .PARAMETER VisualStudioEdition
         Selects Visual Studio Development Environment based on Edition
-        Valid values are 'Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestControler', 'TestProfessional', 'FeedbackClient', '*'
+        Valid values are 'Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestController', 'TestProfessional', 'FeedbackClient', '*'
         Defaults to '*' (any edition)
     .PARAMETER VisualStudioVersion
         Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)
@@ -576,7 +608,7 @@ function Invoke-MsBuild {
     .PARAMETER VersionMatchingRule
         Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 
         
-        - 'Like' (Default) is similar to powershells '-like' operator
+        - 'Like' (Default) is similar to powershell's '-like' operator
         - 'ExactMatch' looks for an exact version match
         - 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)
     .PARAMETER RequiredComponents
