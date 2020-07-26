@@ -6,6 +6,7 @@
     "cSpell.words": [
         "COMSPEC",
         "Withrequired",
+        "devenv",
         "hashtable",
         "icontains",
         "ilike",
@@ -14,6 +15,7 @@
         "powershell's",
         "pwsh",
         "vcvars",
+        "vsbuild",
         "vsdevcmd",
         "vsvars",
         "vswhere"
