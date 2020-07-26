@@ -897,6 +897,7 @@ Set-Alias -Name msbuild -Value Invoke-MsBuild
 
 Set-Alias -Name vsbuild -Value Invoke-VsBuild
 Set-Alias -Name ivb -Value Invoke-VsBuild
+Set-Alias -Name devenv -Value Invoke-VsBuild
 
 Export-ModuleMember Invoke-VsDevCommand
 Export-ModuleMember -Alias ivdc
@@ -910,3 +911,4 @@ Export-ModuleMember -Alias msbuild
 Export-ModuleMember Invoke-VsBuild
 Export-ModuleMember -Alias vsbuild
 Export-ModuleMember -Alias ivb
+Export-ModuleMember -Alias devenv
