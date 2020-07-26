@@ -712,6 +712,7 @@ function Invoke-VsBuild {
     param (
         [Parameter(ParameterSetName = 'Default', Mandatory = $true, Position = 0, HelpMessage = 'List of arguments')]
         [Parameter(ParameterSetName = 'CodeName', Mandatory = $true, Position = 0, HelpMessage = 'List of arguments')]
+        [Parameter(ParameterSetName = 'IDEMode', Mandatory = $false, Position = 0, HelpMessage = 'List of arguments')]
         [string]
         $SolutionFile,
 
@@ -722,12 +723,14 @@ function Invoke-VsBuild {
 
         [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Edition (Community, Professional, Enterprise, etc.)')]
         [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Edition (Community, Professional, Enterprise, etc.)')]
+        [Parameter(ParameterSetName = 'IDEMode', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Edition (Community, Professional, Enterprise, etc.)')]
         [CmdletBinding(PositionalBinding = $false)]
         [Alias('Edition')]
         [ValidateSet('Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestController', 'TestProfessional', 'FeedbackClient', '*')]        [string]
         $VisualStudioEdition = '*',
 
         [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)')]
+        [Parameter(ParameterSetName = 'IDEMode', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)')]
         [CmdletBinding(PositionalBinding = $false)]
         [Alias('Version')]
         [ValidateSet('2015', '2017', '2019', $null)]
@@ -735,6 +738,7 @@ function Invoke-VsBuild {
         $VisualStudioVersion = $null,
 
         [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Version CodeName (Dev14, Dev15, Dev16 etc.)')]
+        [Parameter(ParameterSetName = 'IDEMode', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Version CodeName (Dev14, Dev15, Dev16 etc.)')]
         [CmdletBinding(PositionalBinding = $false)]
         [Alias('CodeName')]
         [ValidateSet('Dev14', 'Dev15', 'Dev16', $null)]
@@ -743,6 +747,7 @@ function Invoke-VsBuild {
 
         [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Build Version (e.g., "15.9.25", "16.8.0"). A prefix is sufficient (e.g., "15", "15.9", "16" etc.)')]
         [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Build Version (e.g., "15.9.25", "16.8.0"). A prefix is sufficient (e.g., "15", "15.9", "16" etc.)')]
+        [Parameter(ParameterSetName = 'IDEMode', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Build Version (e.g., "15.9.25", "16.8.0"). A prefix is sufficient (e.g., "15", "15.9", "16" etc.)')]
         [Alias('BuildVersion')]
         [CmdletBinding(PositionalBinding = $false)]
         [string]
@@ -750,6 +755,7 @@ function Invoke-VsBuild {
 
         [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = "Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershell's '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
         [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = "Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershell's '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [Parameter(ParameterSetName = 'IDEMode', Mandatory = $false, HelpMessage = "Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershell's '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
         [ValidateSet('Like', 'ExactMatch', 'NewestGreaterThan')]
         [CmdletBinding(PositionalBinding = $false)]
         [string]
@@ -757,23 +763,32 @@ function Invoke-VsBuild {
 
         [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = "List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's")]
         [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = "List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's")]
+        [Parameter(ParameterSetName = 'IDEMode', Mandatory = $false, HelpMessage = "List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's")]
         [CmdletBinding(PositionalBinding = $false)]
         [string[]]
         $RequiredComponents,
 
         [Parameter(ParameterSetName = 'Default', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
         [Parameter(ParameterSetName = 'CodeName', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
+        [Parameter(ParameterSetName = 'IDEMode', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
         [CmdletBinding(PositionalBinding = $false)]
         [switch]
         $Interactive,
 
         
-        [Parameter(ParameterSetName = 'Default', Position = 1, ValueFromRemainingArguments, HelpMessage = "Build Target to Run. Options are 'Build' (Default), 'Rebuild', 'Clean', 'Deploy'")]
-        [Parameter(ParameterSetName = 'CodeName', Position = 1, ValueFromRemainingArguments, HelpMessage = "Build Target to Run. Options are 'Build' (Default), 'Rebuild', 'Clean', 'Deploy'")]
+        [Parameter(ParameterSetName = 'Default', HelpMessage = "Build Target to Run. Options are 'Build' (Default), 'Rebuild', 'Clean', 'Deploy'")]
+        [Parameter(ParameterSetName = 'CodeName', HelpMessage = "Build Target to Run. Options are 'Build' (Default), 'Rebuild', 'Clean', 'Deploy'")]
         [CmdletBinding(PositionalBinding=$false)]
         [ValidateSet('Build', 'Rebuild', 'Clean', 'Deploy')]
         [string]
-        $Target = 'Build'
+        $Target = 'Build',
+
+        [Parameter(ParameterSetName = 'Default', HelpMessage = "Launch Visual Studio IDE")]
+        [Parameter(ParameterSetName = 'CodeName', HelpMessage = "Launch Visual Studio IDE")]
+        [Parameter(ParameterSetName = 'IDEMode', HelpMessage = "Launch Visual Studio IDE")]
+        [CmdletBinding(PositionalBinding=$false)]
+        [switch]
+        $Ide
     )
 
     <#
@@ -797,8 +812,36 @@ function Invoke-VsBuild {
     We need to redirect and capture stdout/stderr; therefore use devenv.com 
     #>
     [string]$command = 'devenv.com'  
-    [string]$Target = '/' + $Target.Trim()
-    [string[]]$augmentedArguments = @($SolutionFile, $Target) + $Arguments
+    [string[]]$augmentedArguments = @()
+
+    if ($SolutionFile) {
+        # $SolutionFile is optional in -IdeMode, so it could be empty
+        $augmentedArguments += $SolutionFile
+    }
+
+    [string[]]$allowedTargets = @('/Build', '/Rebuild', '/Clean', '/Deploy')
+    if ($Arguments -and (Compare-Object $allowedTargets $Arguments -PassThru -IncludeEqual -ExcludeDifferent)) {
+        # $allowedTargets INTERSECT $Arguments != $null
+        # $Arguments supersedes $Target
+        if ($Ide) {
+            # In -Ide mode, do not no targets are allowed
+            $Arguments = $Arguments | Where-Object {
+                $allowedTargets -inotcontains $_
+            }
+        }
+        $augmentedArguments += $Arguments
+    } else {
+        if (-not [string]::IsNullOrWhiteSpace($Target) -and (-not $Ide)) {
+            # Include $Target only when NOT($Ide)
+            [string]$Target = '/' + $Target.Trim()
+            $augmentedArguments += $Target
+        }
+        
+        if ($Arguments -and $Arguments.Count -gt 0) {
+            $augmentedArguments += $Arguments
+        }
+    }
+
     [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand($command, $augmentedArguments, $Interactive)
 
     <#
@@ -841,6 +884,9 @@ function Invoke-VsBuild {
         Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment
     .PARAMETER Target
         Build Target to Run. Options are 'Build' (Default), 'Rebuild', 'Clean', 'Deploy'
+    .PARAMETER Ide
+        Launch Visual Studio IDE
+        If $Target parameter or a commandline option related to build like /Build, /Clean, /Deploy, /Rebuild is specified, they would be ignored
     #>
 }
 
