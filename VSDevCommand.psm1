@@ -30,6 +30,91 @@ class UserApplicationNotFoundException : System.ArgumentException {
     UserApplicationNotFoundException([string] $paramName, [System.Exception]$inner): base('Application not found', $paramName, $inner) {}
 }
 
+class ProcessResult {
+    [string] $ExeFile
+    [string[]] $Arguments
+    [int] $ExitCode
+    [string] $Out
+    [string] $Err
+}
+
+class ProcessHelper {
+    # Courtesy https://stackoverflow.com/a/24371479/492471
+    #   + Several modifications
+    # Runs the specified executable and captures its exit code, stdout
+    # and stderr.
+    # Returns: custom object.
+    [ProcessResult] static Run([String]$sExeFile,[String[]]$cArgs,[String]$sVerb ) {
+
+        # sExeFile is a mandatory parameter
+        if ((-not $sExeFile) -or (-not (Test-Path -PathType Leaf -Path $sExeFile))){
+            throw New-Object System.ArgumentException 'sExeFile'
+        }
+
+        # Setting process invocation parameters.
+        $oPsi = New-Object -TypeName System.Diagnostics.ProcessStartInfo
+        $oPsi.CreateNoWindow = $true
+        $oPsi.UseShellExecute = $false
+        $oPsi.RedirectStandardOutput = $true
+        $oPsi.RedirectStandardError = $true
+        $oPsi.FileName = $sExeFile
+        if (! [String]::IsNullOrEmpty($cArgs)) {
+            $oPsi.Arguments = $cArgs
+        }
+        if (! [String]::IsNullOrEmpty($sVerb)) {
+            $oPsi.Verb = $sVerb
+        }
+    
+        # Creating process object.
+        $oProcess = New-Object -TypeName System.Diagnostics.Process
+        $oProcess.StartInfo = $oPsi
+    
+        # Creating string builders to store stdout and stderr.
+        $oStdOutBuilder = New-Object -TypeName System.Text.StringBuilder
+        $oStdErrBuilder = New-Object -TypeName System.Text.StringBuilder
+    
+        # Adding event handlers for stdout and stderr.
+        $sScripBlock = {
+            if (! [String]::IsNullOrEmpty($EventArgs.Data)) {
+                $Event.MessageData.AppendLine($EventArgs.Data)
+            }
+        }
+        $oStdOutEvent = Register-ObjectEvent -InputObject $oProcess `
+            -Action $sScripBlock -EventName 'OutputDataReceived' `
+            -MessageData $oStdOutBuilder
+        $oStdErrEvent = Register-ObjectEvent -InputObject $oProcess `
+            -Action $sScripBlock -EventName 'ErrorDataReceived' `
+            -MessageData $oStdErrBuilder
+    
+        # Starting process.
+        [Void]$oProcess.Start()
+        $oProcess.BeginOutputReadLine()
+        $oProcess.BeginErrorReadLine()
+        [Void]$oProcess.WaitForExit()
+    
+        # Unregister events to retrieve process output.
+        Unregister-Event -SourceIdentifier $oStdOutEvent.Name
+        Unregister-Event -SourceIdentifier $oStdErrEvent.Name
+    
+        $oResult = [ProcessResult]::new()
+        $oResult.ExeFile = $sExeFile
+        $oResult.Arguments = $cArgs
+        $oResult.ExitCode = $oProcess.ExitCode
+        $oResult.Out = $oStdOutBuilder.ToString().Trim()
+        $oResult.Err = $oStdErrBuilder.ToString().Trim()
+    
+        return $oResult
+    }
+
+    [ProcessResult] static Run([String]$sExeFile,[String[]]$cArgs) {
+        return [ProcessHelper]::Run($sExeFile, $cArgs, $null)
+    }
+
+    [ProcessResult] static Run([String]$sExeFile) {
+        return [ProcessHelper]::Run($sExeFile, $null, $null)
+    }
+}
+
 
 class VsDevCmd {
     hidden [System.Collections.Generic.Dictionary[string, string]]$SavedEnv = @{}
@@ -384,8 +469,10 @@ class VsDevCmd {
             }
 
             [string] $cmd = if ($cmdObject -is [array]) { $cmdObject[0].Source } else { $cmdObject.Source }
-            Write-Verbose "$cmd"
 
+            [ProcessResult]$result = [ProcessHelper]::Run($cmd, $Arguments)
+
+            <#
             [string]$result = [string]::Empty
             [System.Diagnostics.Process]$p = $null
             if ($Arguments -and $Arguments.Count -gt 0) {
@@ -400,7 +487,9 @@ class VsDevCmd {
             else {
                 $p.WaitForExit()
             }
-            return $result
+            #>
+
+            return $result.Out
         }
         finally {
             $this.Restore_Environment()
@@ -618,21 +707,162 @@ function Invoke-MsBuild {
     #>
 }
 
+function Invoke-VsBuild {
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    param (
+        [Parameter(ParameterSetName = 'Default', Mandatory = $true, Position = 0, HelpMessage = 'List of arguments')]
+        [Parameter(ParameterSetName = 'CodeName', Mandatory = $true, Position = 0, HelpMessage = 'List of arguments')]
+        [string]
+        $SolutionFile,
+
+        [Parameter(ParameterSetName = 'Default', Position = 1, ValueFromRemainingArguments, HelpMessage = 'List of arguments')]
+        [Parameter(ParameterSetName = 'CodeName', Position = 1, ValueFromRemainingArguments, HelpMessage = 'List of arguments')]
+        [string[]]
+        $Arguments,
+
+        [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Edition (Community, Professional, Enterprise, etc.)')]
+        [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Edition (Community, Professional, Enterprise, etc.)')]
+        [CmdletBinding(PositionalBinding = $false)]
+        [Alias('Edition')]
+        [ValidateSet('Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestController', 'TestProfessional', 'FeedbackClient', '*')]        [string]
+        $VisualStudioEdition = '*',
+
+        [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)')]
+        [CmdletBinding(PositionalBinding = $false)]
+        [Alias('Version')]
+        [ValidateSet('2015', '2017', '2019', $null)]
+        [string]
+        $VisualStudioVersion = $null,
+
+        [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Version CodeName (Dev14, Dev15, Dev16 etc.)')]
+        [CmdletBinding(PositionalBinding = $false)]
+        [Alias('CodeName')]
+        [ValidateSet('Dev14', 'Dev15', 'Dev16', $null)]
+        [string]
+        $VisualStudioCodeName = $null,
+
+        [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Build Version (e.g., "15.9.25", "16.8.0"). A prefix is sufficient (e.g., "15", "15.9", "16" etc.)')]
+        [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Build Version (e.g., "15.9.25", "16.8.0"). A prefix is sufficient (e.g., "15", "15.9", "16" etc.)')]
+        [Alias('BuildVersion')]
+        [CmdletBinding(PositionalBinding = $false)]
+        [string]
+        $VisualStudioBuildVersion = $null,
+
+        [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = "Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershell's '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = "Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershell's '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [ValidateSet('Like', 'ExactMatch', 'NewestGreaterThan')]
+        [CmdletBinding(PositionalBinding = $false)]
+        [string]
+        $VersionMatchingRule = 'Like',
+
+        [Parameter(ParameterSetName = 'Default', Mandatory = $false, HelpMessage = "List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's")]
+        [Parameter(ParameterSetName = 'CodeName', Mandatory = $false, HelpMessage = "List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's")]
+        [CmdletBinding(PositionalBinding = $false)]
+        [string[]]
+        $RequiredComponents,
+
+        [Parameter(ParameterSetName = 'Default', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
+        [Parameter(ParameterSetName = 'CodeName', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
+        [CmdletBinding(PositionalBinding = $false)]
+        [switch]
+        $Interactive,
+
+        
+        [Parameter(ParameterSetName = 'Default', Position = 1, ValueFromRemainingArguments, HelpMessage = "Build Target to Run. Options are 'Build' (Default), 'Rebuild', 'Clean', 'Deploy'")]
+        [Parameter(ParameterSetName = 'CodeName', Position = 1, ValueFromRemainingArguments, HelpMessage = "Build Target to Run. Options are 'Build' (Default), 'Rebuild', 'Clean', 'Deploy'")]
+        [CmdletBinding(PositionalBinding=$false)]
+        [ValidateSet('Build', 'Rebuild', 'Clean', 'Deploy')]
+        [string]
+        $Target = 'Build'
+    )
+
+    <#
+        Parameter mapping:
+            [string] $productDisplayVersion,    # 16.8.0, 15.9.24 etc.              $VisualStudioBuildVersion
+            [string] $edition,                  # Professional, Enterprise etc.     $VisualStudioEdition
+            [string] $productLineVersion,       # 2015, 2017, 2019 etc.             $VisualStudioVersion
+            [string] $productLine) {            # Dev15, Dev16 etc.                 $VisualStudioCodeName
+    #>
+    
+    <#
+    Per documentation at https://docs.microsoft.com/en-us/visualstudio/ide/reference/devenv-command-line-switches?view=vs-2019: 
+
+        Commands that begin with devenv are handled by the devenv.com utility, which delivers output through standard system streams,
+        such as stdout and stderr. The utility determines the appropriate I/O redirection when it captures output, for example to a .txt
+        file.
+
+        Alternatively, commands that begin with devenv.exe can use the same switches, but the devenv.com utility is bypassed. Using
+        devenv.exe directly prevents output from appearing on the console.
+    
+    We need to redirect and capture stdout/stderr; therefore use devenv.com 
+    #>
+    [string]$command = 'devenv.com'  
+    [string]$Target = '/' + $Target.Trim()
+    [string[]]$augmentedArguments = @($SolutionFile, $Target) + $Arguments
+    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand($command, $augmentedArguments, $Interactive)
+
+    <#
+    .SYNOPSIS
+        Runs an application/command in the VS Developer Command Prompt environment
+    .DESCRIPTION
+        Runs an application/command in the VS Developer Command Prompt environment
+    .EXAMPLE
+        PS C:\> Invoke-VsDevCommand msbuild /?
+        Runs 'msbuild /?'
+    .INPUTS
+        None. You cannot pipe objects to Invoke-VsDevCommand
+    .OUTPUTS
+        System.String[]. Invoke-VsDevCommand returns an array of strings that represents the output of executing the application/command
+        with the given arguments
+    .PARAMETER Command
+        Application/Command to execute in the VS Developer Command Prompt Environment
+    .PARAMETER Arguments
+        Arguments to pass to Application/Command being executed
+    .PARAMETER VisualStudioEdition
+        Selects Visual Studio Development Environment based on Edition
+        Valid values are 'Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestController', 'TestProfessional', 'FeedbackClient', '*'
+        Defaults to '*' (any edition)
+    .PARAMETER VisualStudioVersion
+        Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)
+    .PARAMETER VisualStudioCodename
+        Selects Visual Studio Development Environment based on Version CodeName (Dev14, Dev15, Dev16 etc.)
+    .PARAMETER VisualStudioBuildVersion
+        Selects Visual Studio Development Environment based on Build Version (e.g., "15.9.25", "16.8.0").
+        A prefix is sufficient (e.g., "15", "15.9", "16" etc.)
+    .PARAMETER VersionMatchingRule
+        Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 
+        
+        - 'Like' (Default) is similar to powershell's '-like' operator
+        - 'ExactMatch' looks for an exact version match
+        - 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)
+    .PARAMETER RequiredComponents
+        List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's
+    .PARAMETER Interactive
+        Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment
+    .PARAMETER Target
+        Build Target to Run. Options are 'Build' (Default), 'Rebuild', 'Clean', 'Deploy'
+    #>
+}
+
 Set-Alias -Name ivdc -Value Invoke-VsDevCommand
 Set-Alias -Name vsdevcmd -Value Invoke-VsDevCommand
 
 Set-Alias -Name imb -Value Invoke-MsBuild
 Set-Alias -Name msbuild -Value Invoke-MsBuild
-Set-Alias -Name Invoke-Build -Value Invoke-MsBuild
-Set-Alias -Name ivb -Value Invoke-MsBuild
 
+
+Set-Alias -Name vsbuild -Value Invoke-VsBuild
+Set-Alias -Name ivb -Value Invoke-VsBuild
 
 Export-ModuleMember Invoke-VsDevCommand
 Export-ModuleMember -Alias ivdc
 Export-ModuleMember -Alias vsdevcmd
 
 Export-ModuleMember Invoke-MsBuild
-Export-ModuleMember -Alias Invoke-Build
 Export-ModuleMember -Alias imb
 Export-ModuleMember -Alias msbuild
+
+
+Export-ModuleMember Invoke-VsBuild
+Export-ModuleMember -Alias vsbuild
 Export-ModuleMember -Alias ivb
