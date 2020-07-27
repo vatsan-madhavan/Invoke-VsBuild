@@ -23,7 +23,7 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      Invoke-ScriptAnalyzer -Path Invoke-VsBuild.psm1
+      Invoke-ScriptAnalyzer -Path Invoke-VsBuild\Invoke-VsBuild.psm1
     failOnStderr: true
     pwsh: true
   name: Run_PSScriptAnalyzer
