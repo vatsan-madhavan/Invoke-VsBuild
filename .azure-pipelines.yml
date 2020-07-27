@@ -23,18 +23,8 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      Invoke-ScriptAnalyzer -Path VsDevCommand.psm1
+      Invoke-ScriptAnalyzer -Path Invoke-VsBuild.psm1
     failOnStderr: true
     pwsh: true
   name: Run_PSScriptAnalyzer
-
-- task: PowerShell@2
-  inputs:
-    targetType: inline
-    script: |
-      Publish-Module -Path .\ -NugetAPIKey $(PSGallery.VSDevCommand.ApiKey) -Confirm -Verbose
-    failOnStderr: true
-    pwsh: true
-  name: 'Publish_Module_to_PowerShell_Gallery'
-  condition: and(succeeded(), eq(variables['Publish'], true))
 
