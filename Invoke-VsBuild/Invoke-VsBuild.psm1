@@ -226,7 +226,15 @@ class VsDevCmd {
         $m = [regex]::Match($ver, $semVerRegex)
         if ($m -and $m.Groups -and $m.Groups.Count -eq 6) {
             $semanticVersion = 
-                New-Object System.Management.Automation.SemanticVersion -ArgumentList $m.Groups[1].Value, $m.Groups[2].GetValue, $m.Groups[3].Value, $m.Groups[4].Value, $m.Groups[5].Value
+                New-Object System.Management.Automation.SemanticVersion($m.Groups[1].Value, $m.Groups[2].Value, $m.Groups[3].Value, $m.Groups[4].Value, $m.Groups[5].Value)
+        } else {
+            # Try if the SemanticVersion object can be created via a [version] object
+            try {
+                $semanticVersion = [System.Management.Automation.SemanticVersion][version]$ver
+            }
+            catch{
+               # Swallow the exception 
+            }
         }
 
         return $semanticVersion
@@ -375,7 +383,7 @@ class VsDevCmd {
 
                     $largest = $null 
                     foreach ($install in $installs) {
-                        if ($install.SemanticVersion -gt $productDisplayVersion) {
+                        if ($install.SemanticVersion -gt $productDisplayVersionSemVer) {
                             # This is a candidate; update $largest if $install > $largest
                             if ((-not $largest) -or ($install.SemanticVersion -gt $largest.SemanticVersion)) {
                                 $largest = $install
@@ -606,6 +614,9 @@ function Invoke-VsDevCommand {
         List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's
     .PARAMETER Interactive
         Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment
+    .LINK
+        #Get-Alias
+    .EXAMPLE
     #>
 }
 
