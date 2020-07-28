@@ -1,10 +1,22 @@
-﻿
+﻿<#
+    Copyright Vatsan Madhavan (c) 2020
+    https://github.com/vatsan-madhavan/Invoke-VsBuild
+#>
+
+<#
+.SYNOPSIS
+    Different matching rules used by 'VersionMatchingRule' parameter
+#>
 enum VersionMatchingRule {
     ExactMatch;
     Like;
     NewestGreaterThan;
 }
 
+<#
+.SYNOPSIS
+    Thrown when VsWhere could not be found
+#>
 class VsWhereNotFoundException : System.IO.FileNotFoundException {
     VsWhereNotFoundException() : base('VsWhere not found') {}
     VsWhereNotFoundException([string]$filename) : base('VsWhere not found', $filename) {}
@@ -12,24 +24,54 @@ class VsWhereNotFoundException : System.IO.FileNotFoundException {
     VsWhereNotFoundException([System.Exception]$inner): base('VsWhere not found', 'VsWhere.exe', $inner) {}
 }
 
+<#
+.SYNOPSIS
+    Thrown when no instance of Visual Studio can be found
+#>
 class VisualStudioNotFoundException : System.Exception {
     VisualStudioNotFoundException() {}
     VisualStudioNotFoundException([string]$message) : base($message) {}
     VisualStudioNotFoundException([string]$message, [System.Exception]$inner): base($message, $inner) {}
 }
 
+<#
+.SYNOPSIS
+    Thrown when no instance of Visual Studio can be found that matches the specified criteria
+#>
 class VisualStudioInstanceNotMatchedException : System.Exception {
     VisualStudioInstanceNotMatchedException() {}
     VisualStudioInstanceNotMatchedException([string]$message) : base($message) {}
     VisualStudioInstanceNotMatchedException([string]$message, [System.Exception]$inner): base($message, $inner) {}
 }
 
+<#
+.SYNOPSIS
+    Thrown when the application intended to be launched within the Visual Studio Developer
+    Command Prompt environment can not be found.
+#>
 class UserApplicationNotFoundException : System.ArgumentException {
     UserApplicationNotFoundException() : base('Application not found') {}
     UserApplicationNotFoundException([string]$paramName) : base('Application not found', $paramName) {}
     UserApplicationNotFoundException([string] $paramName, [System.Exception]$inner): base('Application not found', $paramName, $inner) {}
 }
 
+<#
+.SYNOPSIS
+    Core information about a Visual Studio Installation
+ #>
+class InstallationInfo  {
+    [string] $InstanceId
+    [System.Management.Automation.SemanticVersion] $SemanticVersion
+    [string] $ProductId # e.g., Microsoft.VisualStudio.Product.Enterprise
+    [string] $ProductLineVersion # e.g., 2019 (as in, Visual Studio 2019)
+    [string] $ProductLine # e.g., Dev15
+    [string] $InstallationPath
+}
+
+<#
+.SYNOPSIS
+    Structure representing the result of [ProcessHelper]::Run(...)
+#>
 class ProcessResult {
     [string] $ExeFile
     [string[]] $Arguments
@@ -38,6 +80,11 @@ class ProcessResult {
     [string] $Err
 }
 
+<#
+.SYNOPSIS
+    Helper class to orchestrate the execution of an application and capture its
+    standard output and standard error streams.
+#>
 class ProcessHelper {
     # Courtesy https://stackoverflow.com/a/24371479/492471
     #   + Several modifications
@@ -58,10 +105,10 @@ class ProcessHelper {
         $oPsi.RedirectStandardOutput = $true
         $oPsi.RedirectStandardError = $true
         $oPsi.FileName = $sExeFile
-        if (! [String]::IsNullOrEmpty($cArgs)) {
+        if (-not [String]::IsNullOrEmpty($cArgs)) {
             $oPsi.Arguments = $cArgs
         }
-        if (! [String]::IsNullOrEmpty($sVerb)) {
+        if (-not [String]::IsNullOrEmpty($sVerb)) {
             $oPsi.Verb = $sVerb
         }
     
@@ -75,7 +122,7 @@ class ProcessHelper {
     
         # Adding event handlers for stdout and stderr.
         $sScripBlock = {
-            if (! [String]::IsNullOrEmpty($EventArgs.Data)) {
+            if (-not [String]::IsNullOrEmpty($EventArgs.Data)) {
                 $Event.MessageData.AppendLine($EventArgs.Data)
             }
         }
@@ -115,11 +162,17 @@ class ProcessHelper {
     }
 }
 
-
+<#
+.SYNOPSIS
+    Contains main logic for executing applications in the VS Developer Command Prompt
+    Environment
+#>
 class VsDevCmd {
+    static hidden [string]$VsWhereUri = 'https://github.com/microsoft/vswhere/releases/download/2.8.4/vswhere.exe'
+    static hidden [string]$VsWhereExe = 'vswhere.exe'
+    
     hidden [System.Collections.Generic.Dictionary[string, string]]$SavedEnv = @{}
     static hidden [string] $vswhere = [VsDevCmd]::Initialize_VsWhere()
-    hidden [string]$vsDevCmd
 
     static [string] hidden Initialize_VsWhere() {
         return [VsDevCmd]::Initialize_VsWhere($env:TEMP)
@@ -133,10 +186,9 @@ class VsDevCmd {
         # -  Anywhere in $env:PATH
         # If found, do not re-download.
 
-        [string]$vswhereExe = 'vswhere.exe'
-        [string]$visualStudioInstallerPath = Join-Path "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\" $vswhereExe
-        [string]$downloadPath = Join-path $InstallDir $vswhereExe
-        [string]$VsWhereTempPath = Join-Path $env:TEMP $vswhereExe
+        [string]$visualStudioInstallerPath = Join-Path "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\" $([VsDevCmd]::VsWhereExe)
+        [string]$downloadPath = Join-path $InstallDir $([VsDevCmd]::VsWhereExe)
+        [string]$VsWhereTempPath = Join-Path $env:TEMP $([VsDevCmd]::VsWhereExe)
 
         # Look under VS Installer Path
         if (Test-Path $visualStudioInstallerPath -PathType Leaf) {
@@ -154,7 +206,7 @@ class VsDevCmd {
         }
 
         # Search $env:PATH
-        $vsWhereCmd = Get-Command $vswhereExe -ErrorAction SilentlyContinue
+        $vsWhereCmd = Get-Command $([VsDevCmd]::VsWhereExe) -ErrorAction SilentlyContinue
         if ($vsWhereCmd -and $vsWhereCmd.Source -and (Test-Path $vsWhereCmd.Source)) {
             return $vsWhereCmd.Source
         }
@@ -169,10 +221,8 @@ class VsDevCmd {
             throw New-Object VsWhereNotFoundException -ArgumentList $inner
         }
 
-        $vsWhereUri = 'https://github.com/microsoft/vswhere/releases/download/2.8.4/vswhere.exe'
-
         if (-not (Test-Path -Path $downloadPath -PathType Leaf)) {
-            Invoke-WebRequest -Uri $vsWhereUri -OutFile (Join-Path $InstallDir 'vswhere.exe')
+            Invoke-WebRequest -Uri $([VsDevCmd]::VsWhereUri) -OutFile (Join-Path $InstallDir $([VsDevCmd]::VsWhereExe))
         }
 
         if (-not (Test-Path -Path $downloadPath -PathType Leaf)) {
@@ -181,10 +231,6 @@ class VsDevCmd {
 
         return $downloadPath
     }
-
-    # VsDevCmd() {
-    #     $this.vsDevCmd = [VsDevCmd]::GetVsDevCmdPath($null,[VersionMatchingRule]::Like, $null, $null, $null)
-    # }
 
     <#
         [string] $productDisplayVersion,            # 16.8.0, 15.9.24 etc.
@@ -203,7 +249,6 @@ class VsDevCmd {
             $this.SavedEnv[$Name] = $oldValue
         }
 
-        Write-Verbose "Updating env[$name] = $value"
         [System.Environment]::SetEnvironmentVariable("$name", "$value", [System.EnvironmentVariableTarget]::Process)
     }
 
@@ -219,6 +264,11 @@ class VsDevCmd {
         $this.SavedEnv.Clear()
     }
 
+    <#
+     # Creates a SemanticVersion object from a version-string
+     #  Uses a standard SemVer2 regex to parse the string into parts before instantiating a SemanticVersion object. 
+     #  If the version-string doesn't match the regex, then attempts instantiating via [string]$ver -> [version] -> [SemanticVersion] path.
+     #>
     [System.Management.Automation.SemanticVersion] static hidden MakeSemanticVersion([string]$ver) {
         [string]$semVerRegex = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
         [System.Management.Automation.SemanticVersion]$semanticVersion = $null
@@ -240,26 +290,29 @@ class VsDevCmd {
         return $semanticVersion
     }
 
-    [PSCustomObject[]] hidden static GetProductInfo($installations) {
-        [PSCustomObject[]]$info = @()
+    [InstallationInfo[]] hidden static GetProductInfo($installations) {
+        [InstallationInfo[]]$info = @()
         $installations | Where-Object {
             $_.catalog
         } | ForEach-Object {
-            [System.Management.Automation.SemanticVersion]$ver = [VsDevCmd]::MakeSemanticVersion($_.catalog.productSemanticVersion)
-            [PSCustomObject]$record = [PSCustomObject]@{
-                InstanceId         = $_.instanceId
-                SemanticVersion    = $ver
-                ProductId          = $_.productId
-                ProductLineVersion = $_.catalog.productLineVersion
-                ProductLine        = $_.catalog.ProductLine
-                InstallationPath    = $_.installationPath
-            }
+            [InstallationInfo]$record = [InstallationInfo]::new()
+            $record.InstanceId = $_.instanceId
+            $record.SemanticVersion = [VsDevCmd]::MakeSemanticVersion($_.catalog.productSemanticVersion)
+            $record.ProductId = $_.productId
+            $record.ProductLineVersion = $_.catalog.productLineVersion
+            $record.ProductLine = $_.catalog.ProductLine
+            $record.InstallationPath = $_.installationPath
             $info += $record
         }
+
         return $info
     }
 
-    [PSCustomObject[]] static hidden GetInstancesWithRequiredComponents([string[]] $requiredComponents) {
+    <#
+     # Gets VS Instances that have the requested components
+     #  This only works for VS 2017 and later.
+     #>
+    [InstallationInfo[]] static hidden GetInstancesWithRequiredComponents([string[]] $requiredComponents) {
         if ((-not $requiredComponents) -or ($requiredComponents.Length -eq 0)) {
             throw New-Object System.ArgumentException -ArgumentList "'requiredComponents' is null or empty", 'requiredComponents'
         }
@@ -278,7 +331,7 @@ class VsDevCmd {
         $p.Start() | Out-Null 
         $installationsWithRequiredComponents = $p.StandardOutput.ReadToEnd()
         $p.WaitForExit()
-            
+        
         $installationsWithRequiredComponents = $installationsWithRequiredComponents | ConvertFrom-Json
         
         if ($installationsWithRequiredComponents) {
@@ -344,7 +397,7 @@ class VsDevCmd {
 
 
         [array]$json = . "$([VsDevCmd]::vswhere)" -prerelease -legacy -format json | ConvertFrom-Json
-        [PSCustomObject[]]$installs = [VsDevCmd]::GetProductInfo($json)
+        [InstallationInfo[]]$installs = [VsDevCmd]::GetProductInfo($json)
 
 
         if ($productLineVersion) {
@@ -406,7 +459,7 @@ class VsDevCmd {
         }
 
         if ($requiredComponents -and ($requiredComponents.Length -gt 0)) {
-            $installsWithrequiredComponents = [VsDevCmd]::GetInstancesWithRequiredComponents($requiredComponents)
+            [InstallationInfo[]]$installsWithrequiredComponents = [VsDevCmd]::GetInstancesWithRequiredComponents($requiredComponents)
 
             $installs = $installs | Where-Object {
                 $installsWithrequiredComponents.InstanceId-icontains $_.InstanceId
@@ -477,25 +530,7 @@ class VsDevCmd {
             }
 
             [string] $cmd = if ($cmdObject -is [array]) { $cmdObject[0].Source } else { $cmdObject.Source }
-
             [ProcessResult]$result = [ProcessHelper]::Run($cmd, $Arguments)
-
-            <#
-            [string]$result = [string]::Empty
-            [System.Diagnostics.Process]$p = $null
-            if ($Arguments -and $Arguments.Count -gt 0) {
-                $p = Start-Process -FilePath "$cmd" -ArgumentList $Arguments -NoNewWindow -OutVariable result -PassThru
-            }
-            else {
-                $p = Start-Process -FilePath "$cmd" -NoNewWindow -OutVariable result -PassThru
-            }
-            if ($interactive) {
-                $p.WaitForExit() | Out-Host
-            }
-            else {
-                $p.WaitForExit()
-            }
-            #>
 
             return $result.Out
         }
