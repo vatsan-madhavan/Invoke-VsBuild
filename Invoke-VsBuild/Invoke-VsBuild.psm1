@@ -68,16 +68,23 @@ class InstallationInfo  {
     [string] $InstallationPath
 }
 
+
+class ProcessInfo {
+    [string] $ExeFile
+    [string[]] $Arguments
+}
+
 <#
 .SYNOPSIS
     Structure representing the result of [ProcessHelper]::Run(...)
 #>
-class ProcessResult {
-    [string] $ExeFile
-    [string[]] $Arguments
+class ProcessResult : ProcessInfo {
     [int] $ExitCode
-    [string] $Out
-    [string] $Err
+    [string] $Output
+}
+
+class BackgroundProcessResult : ProcessInfo {
+    [System.Diagnostics.Process] $Handle
 }
 
 <#
@@ -86,79 +93,54 @@ class ProcessResult {
     standard output and standard error streams.
 #>
 class ProcessHelper {
-    # Courtesy https://stackoverflow.com/a/24371479/492471
-    #   + Several modifications
-    # Runs the specified executable and captures its exit code, stdout
-    # and stderr.
-    # Returns: custom object.
-    [ProcessResult] static Run([String]$sExeFile,[String[]]$cArgs,[String]$sVerb ) {
-
+    [BackgroundProcessResult] static RunDetached([String]$sExeFile, [String[]]$cArgs) {
         # sExeFile is a mandatory parameter
         if ((-not $sExeFile) -or (-not (Test-Path -PathType Leaf -Path $sExeFile))){
             throw New-Object System.ArgumentException 'sExeFile'
+        }    
+
+        $sExeFile = (Resolve-Path $sExeFile).Path # clean-up the path
+
+        [System.Diagnostics.Process] $process = $null
+        if ($cArgs -And $cArgs -gt 0) {
+            $process = Start-Process -FilePath $sExeFile -ArgumentList $cArgs -NoNewWindow -PassThru
+        } else {
+            $process = Start-Process -FilePath $sExeFile -NoNewWindow -PassThru
         }
 
-        # Setting process invocation parameters.
-        $oPsi = New-Object -TypeName System.Diagnostics.ProcessStartInfo
-        $oPsi.CreateNoWindow = $true
-        $oPsi.UseShellExecute = $false
-        $oPsi.RedirectStandardOutput = $true
-        $oPsi.RedirectStandardError = $true
-        $oPsi.FileName = $sExeFile
-        if (-not [String]::IsNullOrEmpty($cArgs)) {
-            $oPsi.Arguments = $cArgs
-        }
-        if (-not [String]::IsNullOrEmpty($sVerb)) {
-            $oPsi.Verb = $sVerb
-        }
-    
-        # Creating process object.
-        $oProcess = New-Object -TypeName System.Diagnostics.Process
-        $oProcess.StartInfo = $oPsi
-    
-        # Creating string builders to store stdout and stderr.
-        $oStdOutBuilder = New-Object -TypeName System.Text.StringBuilder
-        $oStdErrBuilder = New-Object -TypeName System.Text.StringBuilder
-    
-        # Adding event handlers for stdout and stderr.
-        $sScripBlock = {
-            if (-not [String]::IsNullOrEmpty($EventArgs.Data)) {
-                $Event.MessageData.AppendLine($EventArgs.Data)
-            }
-        }
-        $oStdOutEvent = Register-ObjectEvent -InputObject $oProcess `
-            -Action $sScripBlock -EventName 'OutputDataReceived' `
-            -MessageData $oStdOutBuilder
-        $oStdErrEvent = Register-ObjectEvent -InputObject $oProcess `
-            -Action $sScripBlock -EventName 'ErrorDataReceived' `
-            -MessageData $oStdErrBuilder
-    
-        # Starting process.
-        [Void]$oProcess.Start()
-        $oProcess.BeginOutputReadLine()
-        $oProcess.BeginErrorReadLine()
-        [Void]$oProcess.WaitForExit()
-    
-        # Unregister events to retrieve process output.
-        Unregister-Event -SourceIdentifier $oStdOutEvent.Name
-        Unregister-Event -SourceIdentifier $oStdErrEvent.Name
-    
-        $oResult = [ProcessResult]::new()
-        $oResult.ExeFile = $sExeFile
-        $oResult.Arguments = $cArgs
-        $oResult.ExitCode = $oProcess.ExitCode
-        $oResult.Out = $oStdOutBuilder.ToString().Trim()
-        $oResult.Err = $oStdErrBuilder.ToString().Trim()
-    
-        return $oResult
+        [BackgroundProcessResult] $result = [BackgroundProcessResult]::new()
+        $result.ExeFile = $sExeFile
+        $result.Arguments = $cArgs
+        $result.Handle = $process
+
+        return $result
     }
 
     [ProcessResult] static Run([String]$sExeFile,[String[]]$cArgs) {
-        return [ProcessHelper]::Run($sExeFile, $cArgs, $null)
+        # sExeFile is a mandatory parameter
+        if ((-not $sExeFile) -or (-not (Test-Path -PathType Leaf -Path $sExeFile))){
+            throw New-Object System.ArgumentException 'sExeFile'
+        }        
+
+        $sExeFile = (Resolve-Path $sExeFile).Path # clean-up the path
+
+        [ProcessResult]$result = [ProcessResult]::new()
+        $result.ExeFile = $sExeFile
+        $result.Arguments = $cArgs
+
+        if ($cArgs -and $cArgs.Count -gt 0) {
+            [string[]]$output = & "$sExeFile" $cArgs 2>&1
+        } else {
+            [string[]]$output = & "$sExeFile" 2>&1
+        }
+
+        $result.Output = $output -join [System.Environment]::NewLine
+        $result.ExitCode = $LASTEXITCODE
+        return $result
     }
 
     [ProcessResult] static Run([String]$sExeFile) {
-        return [ProcessHelper]::Run($sExeFile, $null, $null)
+        return [ProcessHelper]::Run($sExeFile, $null, $null, $false)
     }
 }
 
@@ -170,9 +152,10 @@ class ProcessHelper {
 class VsDevCmd {
     static hidden [string]$VsWhereUri = 'https://github.com/microsoft/vswhere/releases/download/2.8.4/vswhere.exe'
     static hidden [string]$VsWhereExe = 'vswhere.exe'
+    static hidden [string] $vswhere = [VsDevCmd]::Initialize_VsWhere()
     
     hidden [System.Collections.Generic.Dictionary[string, string]]$SavedEnv = @{}
-    static hidden [string] $vswhere = [VsDevCmd]::Initialize_VsWhere()
+    hidden [string]$vsDevCmd  # full path to VS Developer Command Prompt Batch File
 
     static [string] hidden Initialize_VsWhere() {
         return [VsDevCmd]::Initialize_VsWhere($env:TEMP)
@@ -319,6 +302,9 @@ class VsDevCmd {
 
         [array]$arguments = @('-prerelease', '-format', 'json') + ($requiredComponents | ForEach-Object { ('-requires', $_) })
 
+        [ProcessResult]$result = [ProcessHelper]::Run($([VsDevCmd]::vswhere), $arguments)
+
+        <#
         [System.Diagnostics.ProcessStartInfo]$psi = New-Object System.Diagnostics.ProcessStartInfo
         $psi.RedirectStandardOutput = $true
         $psi.RedirectStandardError = $true
@@ -333,6 +319,8 @@ class VsDevCmd {
         $p.WaitForExit()
         
         $installationsWithRequiredComponents = $installationsWithRequiredComponents | ConvertFrom-Json
+        #>
+        $installationsWithRequiredComponents = $result.Output | ConvertFrom-Json
         
         if ($installationsWithRequiredComponents) {
             return [VsDevCmd]::GetProductInfo($installationsWithRequiredComponents)
@@ -396,7 +384,12 @@ class VsDevCmd {
         # }
 
 
-        [array]$json = . "$([VsDevCmd]::vswhere)" -prerelease -legacy -format json | ConvertFrom-Json
+        [ProcessResult]$processResult = [ProcessHelper]::Run("$([VsDevCmd]::vswhere)", @('-prerelease', '-legacy', '-format', 'json'))
+        if (-not ($processResult.ExitCode -eq 0)) {
+            throw New-Object VisualStudioNotFoundException -ArgumentList "Failed to run $([VsDevCmd]::vswhere)"
+        }
+        [array]$json = $processResult.Output | ConvertFrom-Json
+
         [InstallationInfo[]]$installs = [VsDevCmd]::GetProductInfo($json)
 
 
@@ -505,7 +498,12 @@ class VsDevCmd {
 
         # older vcvars32.bat doesn't understand no-logo argument
         [string]$cmd = if ((Split-Path -Leaf $vsDevCmdPath) -ieq 'vsvars32.bat') { "`"$vsDevCmdPath`" && set" } else { "`"$vsDevCmdPath`" -no_logo && set" }
-        [string[]]$envVars = . "${env:COMSPEC}" /s /c $cmd
+        [ProcessResult]$processResult = [ProcessHelper]::Run("${env:COMSPEC}", @('/s', '/c', $cmd))
+        if ($processResult.ExitCode -ne 0) {
+            throw New-Object VisualStudioNotFoundException "Failed to run ${env:COMSPEC} /s /c $cmd"
+        }
+        [string[]]$envVars = $processResult.Output -split [System.Environment]::NewLine
+
         foreach ($envVar in $envVars) {
             [string]$name, [string]$value = $envVar -split '=', 2
             Write-Verbose "Setting env:$name=$value"
@@ -532,7 +530,7 @@ class VsDevCmd {
             [string] $cmd = if ($cmdObject -is [array]) { $cmdObject[0].Source } else { $cmdObject.Source }
             [ProcessResult]$result = [ProcessHelper]::Run($cmd, $Arguments)
 
-            return $result.Out
+            return $result.Output
         }
         finally {
             $this.Restore_Environment()
