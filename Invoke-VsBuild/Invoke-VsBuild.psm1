@@ -68,82 +68,6 @@ class InstallationInfo  {
     [string] $InstallationPath
 }
 
-
-class ProcessInfo {
-    [string] $ExeFile
-    [string[]] $Arguments
-}
-
-<#
-.SYNOPSIS
-    Structure representing the result of [ProcessHelper]::Run(...)
-#>
-class ProcessResult : ProcessInfo {
-    [int] $ExitCode
-    [string] $Output
-}
-
-class BackgroundProcessResult : ProcessInfo {
-    [System.Diagnostics.Process] $Handle
-}
-
-<#
-.SYNOPSIS
-    Helper class to orchestrate the execution of an application and capture its
-    standard output and standard error streams.
-#>
-class ProcessHelper {
-    [BackgroundProcessResult] static RunDetached([String]$sExeFile, [String[]]$cArgs) {
-        # sExeFile is a mandatory parameter
-        if ((-not $sExeFile) -or (-not (Test-Path -PathType Leaf -Path $sExeFile))){
-            throw New-Object System.ArgumentException 'sExeFile'
-        }    
-
-        $sExeFile = (Resolve-Path $sExeFile).Path # clean-up the path
-
-        [System.Diagnostics.Process] $process = $null
-        if ($cArgs -And $cArgs -gt 0) {
-            $process = Start-Process -FilePath $sExeFile -ArgumentList $cArgs -NoNewWindow -PassThru
-        } else {
-            $process = Start-Process -FilePath $sExeFile -NoNewWindow -PassThru
-        }
-
-        [BackgroundProcessResult] $result = [BackgroundProcessResult]::new()
-        $result.ExeFile = $sExeFile
-        $result.Arguments = $cArgs
-        $result.Handle = $process
-
-        return $result
-    }
-
-    [ProcessResult] static Run([String]$sExeFile,[String[]]$cArgs) {
-        # sExeFile is a mandatory parameter
-        if ((-not $sExeFile) -or (-not (Test-Path -PathType Leaf -Path $sExeFile))){
-            throw New-Object System.ArgumentException 'sExeFile'
-        }        
-
-        $sExeFile = (Resolve-Path $sExeFile).Path # clean-up the path
-
-        [ProcessResult]$result = [ProcessResult]::new()
-        $result.ExeFile = $sExeFile
-        $result.Arguments = $cArgs
-
-        if ($cArgs -and $cArgs.Count -gt 0) {
-            [string[]]$output = & "$sExeFile" $cArgs 2>&1
-        } else {
-            [string[]]$output = & "$sExeFile" 2>&1
-        }
-
-        $result.Output = $output -join [System.Environment]::NewLine
-        $result.ExitCode = $LASTEXITCODE
-        return $result
-    }
-
-    [ProcessResult] static Run([String]$sExeFile) {
-        return [ProcessHelper]::Run($sExeFile, $null, $null, $false)
-    }
-}
-
 <#
 .SYNOPSIS
     Contains main logic for executing applications in the VS Developer Command Prompt
@@ -302,7 +226,9 @@ class VsDevCmd {
 
         [array]$arguments = @('-prerelease', '-format', 'json') + ($requiredComponents | ForEach-Object { ('-requires', $_) })
 
-        [ProcessResult]$result = [ProcessHelper]::Run($([VsDevCmd]::vswhere), $arguments)
+        #[ProcessResult]$result = [ProcessHelper]::Run($([VsDevCmd]::vswhere), $arguments)
+
+        [ProcessRunner.ProcessHelper+ProcessResult]$result = [ProcessRunner.ProcessHelper]::Run($([VsDevCmd]::vswhere), $arguments)
 
         <#
         [System.Diagnostics.ProcessStartInfo]$psi = New-Object System.Diagnostics.ProcessStartInfo
@@ -384,7 +310,7 @@ class VsDevCmd {
         # }
 
 
-        [ProcessResult]$processResult = [ProcessHelper]::Run("$([VsDevCmd]::vswhere)", @('-prerelease', '-legacy', '-format', 'json'))
+        [ProcessRunner.ProcessHelper+ProcessResult]$processResult = [ProcessRunner.ProcessHelper]::Run("$([VsDevCmd]::vswhere)", @('-prerelease', '-legacy', '-format', 'json'))
         if (-not ($processResult.ExitCode -eq 0)) {
             throw New-Object VisualStudioNotFoundException -ArgumentList "Failed to run $([VsDevCmd]::vswhere)"
         }
@@ -497,8 +423,19 @@ class VsDevCmd {
         [string]$vsDevCmdPath = $this.vsDevCmd
 
         # older vcvars32.bat doesn't understand no-logo argument
-        [string]$cmd = if ((Split-Path -Leaf $vsDevCmdPath) -ieq 'vsvars32.bat') { "`"$vsDevCmdPath`" && set" } else { "`"$vsDevCmdPath`" -no_logo && set" }
-        [ProcessResult]$processResult = [ProcessHelper]::Run("${env:COMSPEC}", @('/s', '/c', $cmd))
+        [string[]]$cmd = if ((Split-Path -Leaf $vsDevCmdPath) -ieq 'vsvars32.bat') { @("`"$vsDevCmdPath`"", "&&", "set") } else { @("`"$vsDevCmdPath`"", "-no_logo",  "&&", "set") }
+        [string[]]$comspecArgs = @('/s', '/c') + $cmd
+        
+        # COMSPEC args should be double-quoted when there are spaces in them
+        $comspecArgs = $comspecArgs | ForEach-Object {
+            if (-not $_.Contains(' ')) {
+                $_
+            } else {
+                '""' + $_.TrimStart('"').TrimEnd('"') + '""'
+            }
+        }
+
+        [ProcessRunner.ProcessHelper+ProcessResult]$processResult = [ProcessRunner.ProcessHelper]::Run("${env:COMSPEC}", $comspecArgs)
         if ($processResult.ExitCode -ne 0) {
             throw New-Object VisualStudioNotFoundException "Failed to run ${env:COMSPEC} /s /c $cmd"
         }
@@ -528,7 +465,7 @@ class VsDevCmd {
             }
 
             [string] $cmd = if ($cmdObject -is [array]) { $cmdObject[0].Source } else { $cmdObject.Source }
-            [ProcessResult]$result = [ProcessHelper]::Run($cmd, $Arguments)
+            [ProcessRunner.ProcessHelper+ProcessResult]$result = [ProcessRunner.ProcessHelper]::Run($cmd, $Arguments, $null, $true, $interactive)
 
             return $result.Output
         }
