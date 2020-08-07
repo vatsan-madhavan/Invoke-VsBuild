@@ -464,6 +464,14 @@ class VsDevCmd {
                 throw New-Object UserApplicationNotFoundException $Command
             }
 
+            # If any of the arguments is a filesystem path, then normalize it. 
+            if ($Arguments -and $Arguments.Count -gt 0) {
+                $Arguments = $Arguments | ForEach-Object {
+                    [string]$resolvedPath = (Resolve-Path $_ -ErrorAction SilentlyContinue).Path
+                    if ($resolvedPath) { $resolvedPath } else { $_ }
+                }
+            }
+
             [string] $cmd = if ($cmdObject -is [array]) { $cmdObject[0].Source } else { $cmdObject.Source }
             [ProcessRunner.ProcessHelper+ProcessResult]$result = [ProcessRunner.ProcessHelper]::Run($cmd, $Arguments, $null, $true, $interactive)
 
