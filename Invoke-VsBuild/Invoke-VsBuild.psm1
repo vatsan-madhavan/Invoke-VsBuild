@@ -795,7 +795,12 @@ function Invoke-VsBuild {
 
     if ($SolutionFile) {
         # $SolutionFile is optional in -IdeMode, so it could be empty
-        $augmentedArguments += $SolutionFile
+        [string]$solutionPath = (Resolve-Path $SolutionFile -ErrorAction SilentlyContinue).Path
+        if ($solutionPath) {
+            $augmentedArguments += $solutionPath
+        } else {
+            throw New-Object System.IO.FileNotFoundException($SolutionFile)
+        }
     }
 
     [string[]]$allowedTargets = @('/Build', '/Rebuild', '/Clean', '/Deploy')
