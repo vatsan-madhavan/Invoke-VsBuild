@@ -451,12 +451,13 @@ class VsDevCmd {
     }
 
 
-    [string[]] Start_BuildCommand ([string]$Command, [string[]]$Arguments) {
-        return $this.Start_BuildCommand($Command, $Arguments, $true) # interactive
-    }
+    [string[]] Start_BuildCommand ([string]$Command, [string[]]$Arguments, [bool]$interactive, [string]$workingDirectory) {
+        if (-not ($workingDirectory) -or -not (test-path $workingDirectory -PathType Container)) {
+            $workingDirectory = (Resolve-Path (Get-Location)).Path
+        }
 
-    [string[]] Start_BuildCommand ([string]$Command, [string[]]$Arguments, [bool]$interactive) {
         try {
+            Push-Location -Path $workingDirectory
             $this.Start_VsDevCmd()
 
             $cmdObject = Get-Command $Command -ErrorAction SilentlyContinue -CommandType Application
@@ -478,6 +479,7 @@ class VsDevCmd {
             return $result.Output
         }
         finally {
+            Pop-Location
             $this.Restore_Environment()
         }
     }
@@ -541,7 +543,13 @@ function Invoke-VsDevCommand {
         [Parameter(ParameterSetName = 'CodeName', HelpMessage = 'Runs in non-interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe in script/batch mode and capture/pipe their output')]
         [CmdletBinding(PositionalBinding = $false)]
         [switch]
-        $NonInteractive
+        $NonInteractive,
+
+        [Parameter(ParameterSetName = 'Default', HelpMessage = "Working directory where the command is run (default is the current directory)")]
+        [Parameter(ParameterSetName = 'CodeName', HelpMessage = "Working directory where the command is run (default is the current directory)")]
+        [CmdletBinding(PositionalBinding=$false)]
+        [string]
+        $WorkingDirectory = (Resolve-Path (Get-Location)).Path
     )
 
     <#
@@ -552,7 +560,7 @@ function Invoke-VsDevCommand {
             [string] $productLine) {            # Dev15, Dev16 etc.                 $VisualStudioCodeName
     #>
 
-    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand($Command, $Arguments, -not $NonInteractive)
+    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand($Command, $Arguments, -not $NonInteractive, $WorkingDirectory)
 
     <#
     .SYNOPSIS
@@ -652,10 +660,16 @@ function Invoke-MsBuild {
         [Parameter(ParameterSetName = 'CodeName', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe in script/batch mode and capture/pipe their output')]
         [CmdletBinding(PositionalBinding = $false)]
         [switch]
-        $NonInteractive
+        $NonInteractive,
+
+        [Parameter(ParameterSetName = 'Default', HelpMessage = "Working directory where the command is run (default is the current directory)")]
+        [Parameter(ParameterSetName = 'CodeName', HelpMessage = "Working directory where the command is run (default is the current directory)")]
+        [CmdletBinding(PositionalBinding=$false)]
+        [string]
+        $WorkingDirectory = (Resolve-Path (Get-Location))
     )
 
-    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule, $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand('msbuild', $Arguments, -not $NonInteractive)
+    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule, $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand('msbuild', $Arguments, -not $NonInteractive, $WorkingDirectory)
 
     <#
     .SYNOPSIS
@@ -764,7 +778,12 @@ function Invoke-VsBuild {
         [switch]
         $NonInteractive,
 
-        
+        [Parameter(ParameterSetName = 'Default', HelpMessage = "Working directory where the command is run (default is the current directory)")]
+        [Parameter(ParameterSetName = 'CodeName', HelpMessage = "Working directory where the command is run (default is the current directory)")]
+        [CmdletBinding(PositionalBinding=$false)]
+        [string]
+        $WorkingDirectory = (Resolve-Path (Get-Location)),
+
         [Parameter(ParameterSetName = 'Default', HelpMessage = "Build Target to Run. Options are 'Build' (Default), 'Rebuild', 'Clean', 'Deploy'")]
         [Parameter(ParameterSetName = 'CodeName', HelpMessage = "Build Target to Run. Options are 'Build' (Default), 'Rebuild', 'Clean', 'Deploy'")]
         [CmdletBinding(PositionalBinding=$false)]
@@ -834,7 +853,7 @@ function Invoke-VsBuild {
         }
     }
 
-    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand($command, $augmentedArguments, -not $NonInteractive)
+    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand($command, $augmentedArguments, -not $NonInteractive, $WorkingDirectory)
 
     <#
     .SYNOPSIS
