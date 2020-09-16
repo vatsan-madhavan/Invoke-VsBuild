@@ -81,6 +81,8 @@ class VsDevCmd {
     hidden [System.Collections.Generic.Dictionary[string, string]]$SavedEnv = @{}
     hidden [string]$vsDevCmd  # full path to VS Developer Command Prompt Batch File
 
+    hidden [string]$workingDirectory
+
     static [string] hidden Initialize_VsWhere() {
         return [VsDevCmd]::Initialize_VsWhere($env:TEMP)
     }
@@ -146,8 +148,13 @@ class VsDevCmd {
         [string] $productLineVersion,               # 2015, 2017, 2019 etc.
         [string] $productLine) {                    # Dev15, Dev16 etc.
     #>
-    VsDevCmd([string]$productDisplayVersion, [VersionMatchingRule] $versionMatchingRule, [string]$edition, [string]$productLineVersion, [string] $productLine, [string[]]$requiredComponents) {
+    VsDevCmd([string]$productDisplayVersion, [VersionMatchingRule] $versionMatchingRule, [string]$edition, [string]$productLineVersion, [string] $productLine, [string[]]$requiredComponents, [string] $workingDirectory) {
         $this.vsDevCmd = [VsDevCmd]::GetVsDevCmdPath($productDisplayVersion, $versionMatchingRule, $edition, $productLineVersion, $productLine, $requiredComponents)
+        
+        $this.workingDirectory = $workingDirectory
+        if ((-not $workingDirectory) -or (-not (test-path -PathType Container $workingDirectory))) {
+            $this.workingDirectory = (Resolve-Path (Get-Location)).Path
+        }
     }
 
     [void] hidden Update_EnvironmentVariable ([string] $Name, [string] $Value) {
@@ -228,7 +235,7 @@ class VsDevCmd {
 
         #[ProcessResult]$result = [ProcessHelper]::Run($([VsDevCmd]::vswhere), $arguments)
 
-        [ProcessRunner.ProcessHelper+ProcessResult]$result = [ProcessRunner.ProcessHelper]::Run($([VsDevCmd]::vswhere), $arguments)
+        [ProcessRunner.ProcessHelper+ProcessResult]$result = [ProcessRunner.ProcessHelper]::Run($([VsDevCmd]::vswhere), $arguments, $env:TEMP)
 
         <#
         [System.Diagnostics.ProcessStartInfo]$psi = New-Object System.Diagnostics.ProcessStartInfo
@@ -310,7 +317,7 @@ class VsDevCmd {
         # }
 
 
-        [ProcessRunner.ProcessHelper+ProcessResult]$processResult = [ProcessRunner.ProcessHelper]::Run("$([VsDevCmd]::vswhere)", @('-prerelease', '-legacy', '-format', 'json'))
+        [ProcessRunner.ProcessHelper+ProcessResult]$processResult = [ProcessRunner.ProcessHelper]::Run("$([VsDevCmd]::vswhere)", @('-prerelease', '-legacy', '-format', 'json'), $env:TEMP)
         if (-not ($processResult.ExitCode -eq 0)) {
             throw New-Object VisualStudioNotFoundException -ArgumentList "Failed to run $([VsDevCmd]::vswhere)"
         }
@@ -435,7 +442,7 @@ class VsDevCmd {
             }
         }
 
-        [ProcessRunner.ProcessHelper+ProcessResult]$processResult = [ProcessRunner.ProcessHelper]::Run("${env:COMSPEC}", $comspecArgs)
+        [ProcessRunner.ProcessHelper+ProcessResult]$processResult = [ProcessRunner.ProcessHelper]::Run("${env:COMSPEC}", $comspecArgs, $this.workingDirectory)
         if ($processResult.ExitCode -ne 0) {
             throw New-Object VisualStudioNotFoundException "Failed to run ${env:COMSPEC} /s /c $cmd"
         }
@@ -451,13 +458,9 @@ class VsDevCmd {
     }
 
 
-    [string[]] Start_BuildCommand ([string]$Command, [string[]]$Arguments, [bool]$interactive, [string]$workingDirectory) {
-        if (-not ($workingDirectory) -or -not (test-path $workingDirectory -PathType Container)) {
-            $workingDirectory = (Resolve-Path (Get-Location)).Path
-        }
-
+    [string[]] Start_BuildCommand ([string]$Command, [string[]]$Arguments, [bool]$interactive) {
         try {
-            Push-Location -Path $workingDirectory
+            Push-Location -Path $this.workingDirectory
             $this.Start_VsDevCmd()
 
             $cmdObject = Get-Command $Command -ErrorAction SilentlyContinue -CommandType Application
@@ -474,7 +477,7 @@ class VsDevCmd {
             }
 
             [string] $cmd = if ($cmdObject -is [array]) { $cmdObject[0].Source } else { $cmdObject.Source }
-            [ProcessRunner.ProcessHelper+ProcessResult]$result = [ProcessRunner.ProcessHelper]::Run($cmd, $Arguments, $null, $true, $interactive)
+            [ProcessRunner.ProcessHelper+ProcessResult]$result = [ProcessRunner.ProcessHelper]::Run($cmd, $Arguments, $null, $true, $interactive, $this.workingDirectory)
 
             return $result.Output
         }
@@ -560,7 +563,7 @@ function Invoke-VsDevCommand {
             [string] $productLine) {            # Dev15, Dev16 etc.                 $VisualStudioCodeName
     #>
 
-    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand($Command, $Arguments, -not $NonInteractive, $WorkingDirectory)
+    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents, $WorkingDirectory).Start_BuildCommand($Command, $Arguments, -not $NonInteractive)
 
     <#
     .SYNOPSIS
@@ -669,7 +672,7 @@ function Invoke-MsBuild {
         $WorkingDirectory = (Resolve-Path (Get-Location))
     )
 
-    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule, $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand('msbuild', $Arguments, -not $NonInteractive, $WorkingDirectory)
+    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule, $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents, $WorkingDirectory).Start_BuildCommand('msbuild', $Arguments, -not $NonInteractive)
 
     <#
     .SYNOPSIS
@@ -853,7 +856,7 @@ function Invoke-VsBuild {
         }
     }
 
-    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand($command, $augmentedArguments, -not $NonInteractive, $WorkingDirectory)
+    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents, $WorkingDirectory).Start_BuildCommand($command, $augmentedArguments, -not $NonInteractive)
 
     <#
     .SYNOPSIS

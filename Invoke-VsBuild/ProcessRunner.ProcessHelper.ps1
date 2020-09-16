@@ -25,7 +25,7 @@ namespace ProcessRunner
         /// <param name="detachUiProcess"></param>
         /// <param name="interactive"></param>
         /// <returns></returns>
-        public static ProcessResult Run(FileInfo filePath, List<string> arguments, string verb, bool detachUiProcess, bool interactive)
+        public static ProcessResult Run(FileInfo filePath, List<string> arguments, string verb, bool detachUiProcess, bool interactive, string workingDirectory)
         {
             if (filePath == null)
             {
@@ -44,6 +44,7 @@ namespace ProcessRunner
                 Verb = verb,
                 RedirectStandardOutput = !interactive,
                 RedirectStandardError = !interactive,
+                WorkingDirectory = workingDirectory,
             };
 
             Process process = new Process()
@@ -112,9 +113,9 @@ namespace ProcessRunner
         /// <param name="arguments"></param>
         /// <param name="verb"></param>
         /// <returns></returns>
-        public static ProcessResult Run(FileInfo filePath, List<string> arguments, string verb)
+        public static ProcessResult Run(FileInfo filePath, List<string> arguments, string verb, string workingDirectory)
         {
-            return ProcessHelper.Run(filePath, arguments, verb, detachUiProcess: false, interactive: false);
+            return ProcessHelper.Run(filePath, arguments, verb, detachUiProcess: false, interactive: false, workingDirectory: workingDirectory);
         }
 
         /// <summary>
@@ -124,9 +125,9 @@ namespace ProcessRunner
         /// <param name="filePath"></param>
         /// <param name="arguments"></param>
         /// <returns></returns>
-        public static ProcessResult Run(FileInfo filePath, List<string> arguments)
+        public static ProcessResult Run(FileInfo filePath, List<string> arguments, string workingDirectory)
         {
-            return ProcessHelper.Run(filePath, arguments, null);
+            return ProcessHelper.Run(filePath, arguments, null, workingDirectory);
         }
 
         /// <summary>
