@@ -33,7 +33,7 @@ Copyright = '(c) Vatsan Madhavan. All rights reserved.'
 Description = '- Invoke-VsBuild enables Commandline builds using Visual Studio
 - Invoke-MsBuild enables Commandline builds using MsBuild
 - Invoke-VsDevCommand function can run any application in the VS Developer Command Prompt
-  - It supports interactive execution mode for running cmd.exe, powershell.exe, pwsh.exe etc.  
+  - It supports interactive and non-interactive/batch execution modes for running cmd.exe, powershell.exe, pwsh.exe etc. either interactively or in batch/pipe modes.  
 - All functions allow selection of Visual Studio environment by specifying version, edition etc. These filters are useful when multiple side-by-side installations of VS are present.'
 
 # Minimum version of the PowerShell engine required by this module
