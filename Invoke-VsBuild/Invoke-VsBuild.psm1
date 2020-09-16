@@ -452,7 +452,7 @@ class VsDevCmd {
 
 
     [string[]] Start_BuildCommand ([string]$Command, [string[]]$Arguments) {
-        return $this.Start_BuildCommand($Command, $Arguments, $false) # non-interactive
+        return $this.Start_BuildCommand($Command, $Arguments, $true) # interactive
     }
 
     [string[]] Start_BuildCommand ([string]$Command, [string[]]$Arguments, [bool]$interactive) {
@@ -537,11 +537,11 @@ function Invoke-VsDevCommand {
         [string[]]
         $RequiredComponents,
 
-        [Parameter(ParameterSetName = 'Default', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
-        [Parameter(ParameterSetName = 'CodeName', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
+        [Parameter(ParameterSetName = 'Default', HelpMessage = 'Runs in non-interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe in script/batch mode and capture/pipe their output')]
+        [Parameter(ParameterSetName = 'CodeName', HelpMessage = 'Runs in non-interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe in script/batch mode and capture/pipe their output')]
         [CmdletBinding(PositionalBinding = $false)]
         [switch]
-        $Interactive
+        $NonInteractive
     )
 
     <#
@@ -552,7 +552,7 @@ function Invoke-VsDevCommand {
             [string] $productLine) {            # Dev15, Dev16 etc.                 $VisualStudioCodeName
     #>
 
-    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand($Command, $Arguments, $Interactive)
+    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand($Command, $Arguments, -not $NonInteractive)
 
     <#
     .SYNOPSIS
@@ -648,14 +648,14 @@ function Invoke-MsBuild {
         [string[]]
         $RequiredComponents,
 
-        [Parameter(ParameterSetName = 'Default', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
-        [Parameter(ParameterSetName = 'CodeName', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
+        [Parameter(ParameterSetName = 'Default', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe in script/batch mode and capture/pipe their output')]
+        [Parameter(ParameterSetName = 'CodeName', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe in script/batch mode and capture/pipe their output')]
         [CmdletBinding(PositionalBinding = $false)]
         [switch]
-        $Interactive
+        $NonInteractive
     )
 
-    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule, $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand('msbuild', $Arguments, $Interactive)
+    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule, $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand('msbuild', $Arguments, -not $NonInteractive)
 
     <#
     .SYNOPSIS
@@ -757,12 +757,12 @@ function Invoke-VsBuild {
         [string[]]
         $RequiredComponents,
 
-        [Parameter(ParameterSetName = 'Default', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
-        [Parameter(ParameterSetName = 'CodeName', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
-        [Parameter(ParameterSetName = 'IDEMode', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment')]
+        [Parameter(ParameterSetName = 'Default', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe in script/batch mode and capture/pipe their output')]
+        [Parameter(ParameterSetName = 'CodeName', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe in script/batch mode and capture/pipe their output')]
+        [Parameter(ParameterSetName = 'IDEMode', HelpMessage = 'Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe in script/batch mode and capture/pipe their output')]
         [CmdletBinding(PositionalBinding = $false)]
         [switch]
-        $Interactive,
+        $NonInteractive,
 
         
         [Parameter(ParameterSetName = 'Default', HelpMessage = "Build Target to Run. Options are 'Build' (Default), 'Rebuild', 'Clean', 'Deploy'")]
@@ -834,7 +834,7 @@ function Invoke-VsBuild {
         }
     }
 
-    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand($command, $augmentedArguments, $Interactive)
+    [VsDevCmd]::new($VisualStudioBuildVersion, $VersionMatchingRule -as [VersionMatchingRule], $VisualStudioEdition, $VisualStudioVersion, $VisualStudioCodeName, $RequiredComponents).Start_BuildCommand($command, $augmentedArguments, -not $NonInteractive)
 
     <#
     .SYNOPSIS
@@ -872,8 +872,8 @@ function Invoke-VsBuild {
         - 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)
     .PARAMETER RequiredComponents
         List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's
-    .PARAMETER Interactive
-        Runs in interactive mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe or csi.exe in the Visual Studio Developer Command Prompt Environment
+    .PARAMETER NonInteractive
+        Runs in non-interactive/batch mode. Useful for running programs like cmd.exe, pwsh.exe, powershell.exe in script/batch mode and capture/pipe their output
     .PARAMETER Target
         Build Target to Run. Options are 'Build' (Default), 'Rebuild', 'Clean', 'Deploy'
     .PARAMETER Ide
