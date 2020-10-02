@@ -1,5 +1,7 @@
 # Invoke-VsBuild
 
+[![Build Status](https://dev.azure.com/vmad/GitHubBuilds/_apis/build/status/vatsan-madhavan.Invoke-VsBuild?branchName=master)](https://dev.azure.com/vmad/GitHubBuilds/_build/latest?definitionId=17&branchName=master)
+
 Powershell Module to Build solutions/projects using Visual Studio, MsBuild and run applications/commands within the VS Developer Command Prompt environment. 
 
 `Invoke-VsBuild.psm1` module exports three key functions:
