@@ -30,7 +30,7 @@ steps:
   
 - task: PublishPipelineArtifact@1
   inputs:
-    targetPath: '$(Pipeline.Workspace)'
+    targetPath: '$(Build.SourcesDirectory)\Invoke-VsBuild'
     artifact: 'Invoke-VsBuild'
     publishLocation: 'pipeline'
 
