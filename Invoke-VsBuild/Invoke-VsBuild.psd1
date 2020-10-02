@@ -84,7 +84,13 @@ AliasesToExport = '*'
 # DscResourcesToExport = @()
 
 # List of all modules packaged with this module
-ModuleList = @(Invoke-VsBuild)
+ModuleList = @(
+  @{
+    ModuleName = "Invoke-VsBuild"; 
+    ModuleVersion = 1.0.0.0;
+    GUID = "84010528-d946-4d18-aee3-334a99b634b0"
+  }
+)
 
 # List of all files packaged with this module
 FileList = @('Invoke-VsBuild.psd1', 'Invoke-VsBuild.psm1', 'ProcessRunner.ProcessHelper.ps1')
