@@ -1,6 +1,9 @@
 # Invoke-VsBuild
 
-[![Build Status](https://dev.azure.com/vmad/GitHubBuilds/_apis/build/status/vatsan-madhavan.Invoke-VsBuild?branchName=master)](https://dev.azure.com/vmad/GitHubBuilds/_build/latest?definitionId=17&branchName=master)
+| Build Status | Deployment Status | Releases |
+| -------------| ----------------- | -------- |
+| [![Build Status](https://dev.azure.com/vmad/GitHubBuilds/_apis/build/status/vatsan-madhavan.Invoke-VsBuild?branchName=master)](https://dev.azure.com/vmad/GitHubBuilds/_build/latest?definitionId=17&branchName=master) | [![Deployment](https://vsrm.dev.azure.com/vmad/_apis/public/Release/badge/d91b4f59-5416-420f-8bd7-8e4aee638122/1/1)](https://vsrm.dev.azure.com/vmad/_apis/public/Release/badge/d91b4f59-5416-420f-8bd7-8e4aee638122/1/1) | [![Releases](https://www.powershellgallery.com/Content/Images/Branding/psgallerylogo.svg)](https://www.powershellgallery.com/packages/Invoke-VsBuild) |
+
 
 Powershell Module to Build solutions/projects using Visual Studio, MsBuild and run applications/commands within the VS Developer Command Prompt environment.
 
