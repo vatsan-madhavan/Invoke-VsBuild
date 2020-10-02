@@ -86,8 +86,8 @@ AliasesToExport = '*'
 # List of all modules packaged with this module
 ModuleList = @(
   @{
-    ModuleName = "Invoke-VsBuild"; 
-    ModuleVersion = 1.0.0.0;
+    ModuleName = ".\Invoke-VsBuild.psm1"; 
+    ModuleVersion = "1.0.0.0";
     GUID = "84010528-d946-4d18-aee3-334a99b634b0"
   }
 )
