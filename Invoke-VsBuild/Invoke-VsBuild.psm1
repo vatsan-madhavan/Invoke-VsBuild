@@ -904,6 +904,111 @@ function Invoke-VsBuild {
     #>
 }
 
+function Invoke-VisualStudio {
+    param (
+        [Parameter(Mandatory = $false, Position = 0, HelpMessage = 'Solution to open in Visual Studio')]
+        [string]
+        $SolutionFile = $null,
+
+        [Parameter(Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Edition (Community, Professional, Enterprise, etc.)')]
+        [CmdletBinding(PositionalBinding = $false)]
+        [Alias('Edition')]
+        [ValidateSet('Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestController', 'TestProfessional', 'FeedbackClient', '*')]
+        [string]
+        $VisualStudioEdition = '*',
+
+        [Parameter(Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)')]
+        [CmdletBinding(PositionalBinding = $false)]
+        [Alias('Version')]
+        [ValidateSet('2015', '2017', '2019', $null)]
+        [string]
+        $VisualStudioVersion = $null,
+
+        [Parameter(Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Version CodeName (Dev14, Dev15, Dev16 etc.)')]
+        [CmdletBinding(PositionalBinding = $false)]
+        [Alias('CodeName')]
+        [ValidateSet('Dev14', 'Dev15', 'Dev16', $null)]
+        [string]
+        $VisualStudioCodeName = $null,
+
+        [Parameter(Mandatory = $false, HelpMessage = 'Selects Visual Studio Development Environment based on Build Version (e.g., "15.9.25", "16.8.0"). A prefix is sufficient (e.g., "15", "15.9", "16" etc.)')]
+        [Alias('BuildVersion')]
+        [CmdletBinding(PositionalBinding = $false)]
+        [string]
+        $VisualStudioBuildVersion = $null,
+
+        [Parameter(Mandatory = $false, HelpMessage = "Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 'Like' is similar to powershell's '-like' operator; 'ExactMatch' looks for an exact version match; 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)")]
+        [ValidateSet('Like', 'ExactMatch', 'NewestGreaterThan')]
+        [CmdletBinding(PositionalBinding = $false)]
+        [string]
+        $VersionMatchingRule = 'Like',
+
+        [Parameter(Mandatory = $false, HelpMessage = "List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's")]
+        [CmdletBinding(PositionalBinding = $false)]
+        [string[]]
+        $RequiredComponents
+    )
+
+    if ($SolutionFile) {
+        Invoke-VsBuild                                          `
+            -Ide                                                `
+            -SolutionFile $SolutionFile                         `
+            -VisualStudioEdition $VisualStudioEdition           `
+            -VisualStudioVersion $VisualStudioVersion           `
+            -VisualStudioCodeName $VisualStudioCodeName         `
+            -VisualStudioBuildVersion $VisualStudioBuildVersion `
+            -VersionMatchingRule $VersionMatchingRule           `
+            -RequiredComponents $RequiredComponents             `
+            -NonInteractive
+    } else {
+        Invoke-VsBuild                                          `
+            -Ide                                                `
+            -VisualStudioEdition $VisualStudioEdition           `
+            -VisualStudioVersion $VisualStudioVersion           `
+            -VisualStudioCodeName $VisualStudioCodeName         `
+            -VisualStudioBuildVersion $VisualStudioBuildVersion `
+            -VersionMatchingRule $VersionMatchingRule           `
+            -RequiredComponents $RequiredComponents             `
+            -NonInteractive
+    }
+
+<#
+    .SYNOPSIS
+        Starts Visual Studio
+    .DESCRIPTION
+        Starts Visual Studio
+    .EXAMPLE
+        PS C:\> Invoke-VisualStudio
+        Starts Visual Studio
+    .INPUTS
+        None. You cannot pipe objects to Invoke-
+    .OUTPUTS
+        None
+    .PARAMETER SolutionFile
+        Solution to open in Visual Studio
+    .PARAMETER VisualStudioEdition
+        Selects Visual Studio Development Environment based on Edition
+        Valid values are 'Community', 'Professional', 'Enterprise', 'TeamExplorer', 'WDExpress', 'BuildTools', 'TestAgent', 'TestController', 'TestProfessional', 'FeedbackClient', '*'
+        Defaults to '*' (any edition)
+    .PARAMETER VisualStudioVersion
+        Selects Visual Studio Development Environment based on Version (2015, 2017, 2019 etc.)
+    .PARAMETER VisualStudioCodename
+        Selects Visual Studio Development Environment based on Version CodeName (Dev14, Dev15, Dev16 etc.)
+    .PARAMETER VisualStudioBuildVersion
+        Selects Visual Studio Development Environment based on Build Version (e.g., "15.9.25", "16.8.0").
+        A prefix is sufficient (e.g., "15", "15.9", "16" etc.)
+    .PARAMETER VersionMatchingRule
+        Identifies the rule for matching 'VisualStudioBuildVersion' parameter. Valid values are {'Like', 'ExactMatch', 'NewestGreaterThan'} 
+        
+        - 'Like' (Default) is similar to powershell's '-like' operator
+        - 'ExactMatch' looks for an exact version match
+        - 'NewestGreaterThan' interprets the supplied version as a number and identifies a Visual Studio installation whose version is greater-than-or-equal to the requested version (the highest available version is selected)
+    .PARAMETER RequiredComponents
+        List of required components. See https://aka.ms/vs/workloads for list of edition-specific workload ID's
+    #>
+}
+
+
 Set-Alias -Name ivdc -Value Invoke-VsDevCommand
 Set-Alias -Name vsdevcmd -Value Invoke-VsDevCommand
 
@@ -913,7 +1018,9 @@ Set-Alias -Name msbuild -Value Invoke-MsBuild
 
 Set-Alias -Name vsbuild -Value Invoke-VsBuild
 Set-Alias -Name ivb -Value Invoke-VsBuild
-Set-Alias -Name devenv -Value Invoke-VsBuild
+
+Set-Alias -Name devenv -Value Invoke-VisualStudio
+Set-Alias -Name Invoke-DevEnv -Value Invoke-VisualStudio
 
 Export-ModuleMember Invoke-VsDevCommand
 Export-ModuleMember -Alias ivdc
@@ -927,4 +1034,8 @@ Export-ModuleMember -Alias msbuild
 Export-ModuleMember Invoke-VsBuild
 Export-ModuleMember -Alias vsbuild
 Export-ModuleMember -Alias ivb
+
+
+Export-ModuleMember Invoke-VisualStudio
 Export-ModuleMember -Alias devenv
+Export-ModuleMember -Alias Invoke-DevEnv

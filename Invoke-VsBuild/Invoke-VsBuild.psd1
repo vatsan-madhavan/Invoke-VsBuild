@@ -12,7 +12,7 @@
 RootModule = 'Invoke-VsBuild'
 
 # Version number of this module.
-ModuleVersion = '0.0.13'
+ModuleVersion = '0.0.14'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -30,11 +30,7 @@ CompanyName = 'Vatsan Madhavan'
 Copyright = '(c) Vatsan Madhavan. All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = '- Invoke-VsBuild enables Commandline builds using Visual Studio
-- Invoke-MsBuild enables Commandline builds using MsBuild
-- Invoke-VsDevCommand function can run any application in the VS Developer Command Prompt
-  - It supports interactive and non-interactive/batch execution modes for running cmd.exe, powershell.exe, pwsh.exe etc. either interactively or in batch/pipe modes.  
-- All functions allow selection of Visual Studio environment by specifying version, edition etc. These filters are useful when multiple side-by-side installations of VS are present.'
+Description = 'Invoke-VsBuild enables Commandline builds using Visual Studio; Invoke-MsBuild enables Commandline builds using MsBuild;Invoke-VsDevCommand function can run any application in the VS Developer Command Prompt; Invoke-VisualStudio launches (any version of) Visual Studio. It also supports interactive and non-interactive (i.e., batch) execution modes for running cmd.exe, powershell.exe, pwsh.exe etc. either interactively or in batch/pipe modes.  All functions  allow selection of Visual Studio environment by specifying version, edition etc. These filters are useful when multiple side-by-side installations of VS are present.'
 
 # Minimum version of the PowerShell engine required by this module
 # PowerShellVersion = ''
@@ -73,7 +69,7 @@ ScriptsToProcess = 'ProcessRunner.ProcessHelper.ps1'
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = 'Invoke-VsDevCommand', 'Invoke-MsBuild', 'Invoke-VsBuild'
+FunctionsToExport = 'Invoke-VsDevCommand', 'Invoke-MsBuild', 'Invoke-VsBuild', 'Invoke-VisualStudio'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = '*'
@@ -88,10 +84,10 @@ AliasesToExport = '*'
 # DscResourcesToExport = @()
 
 # List of all modules packaged with this module
-# ModuleList = @()
+ModuleList = @('Invoke-VsBuild')
 
 # List of all files packaged with this module
-# FileList = @()
+FileList = @('Invoke-VsBuild.psd1', 'Invoke-VsBuild.psm1', 'ProcessRunner.ProcessHelper.ps1')
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
 PrivateData = @{
@@ -131,6 +127,5 @@ PrivateData = @{
 
 # Default prefix for commands exported from this module. Override the default prefix using Import-Module -Prefix.
 # DefaultCommandPrefix = ''
-
 }
 
