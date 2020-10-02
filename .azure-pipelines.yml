@@ -27,4 +27,10 @@ steps:
     failOnStderr: true
     pwsh: true
   name: Run_PSScriptAnalyzer
+  
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: '$(Pipeline.Workspace)\Invoke-VsBuild'
+    artifact: 'Invoke-VsBuild'
+    publishLocation: 'pipeline'
 
