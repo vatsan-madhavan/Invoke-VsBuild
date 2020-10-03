@@ -29,7 +29,7 @@ namespace ProcessRunner
         {
             if (filePath == null)
             {
-                throw new ArgumentNullException(nameof(filePath));
+                throw new ArgumentNullException("filePath");
             }
 
             if (!filePath.Exists)
@@ -97,11 +97,11 @@ namespace ProcessRunner
 
             if (process.HasExited)
             {
-                return new ProcessResult(filePath.FullName, arguments?.ToArray(), output.ToString(), error.ToString(), process.ExitCode);
+                return new ProcessResult(filePath.FullName, arguments != null ? arguments.ToArray() : null, output.ToString(), error.ToString(), process.ExitCode);
             }
             else
             {
-                return new RunningProcessResult(filePath.FullName, arguments?.ToArray(), process);
+                return new RunningProcessResult(filePath.FullName, arguments != null ? arguments.ToArray() : null, process);
             }
         }
 
