@@ -23,3 +23,5 @@ Write-Verbose "Module Version: ($module.Version)"
 [Version]$updatedVersion = Get-NextBuild -Version $module.Version
 Write-Verbose "New Version: $updatedVersion"
 Update-ModuleManifest -Path $manifestPath -ModuleVersion $updatedVersion -Verbose
+
+Write-Host "##vso[task.setvariable variable=UpdatedModuleVersion;]$updatedVersion"
