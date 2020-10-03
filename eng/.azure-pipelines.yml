@@ -14,19 +14,20 @@ steps:
     failOnStderr: true
     pwsh: true
   name: Install_PSScriptAnalyzer
-  
+
 - task: PowerShell@2
   inputs:
     targetType: 'inline'
     script: |
-      Invoke-ScriptAnalyzer -Path Invoke-VsBuild\Invoke-VsBuild.psm1
+      Invoke-ScriptAnalyzer -Path Invoke-VsBuild\Invoke-VsBuild.psd1
     failOnStderr: true
     pwsh: true
   name: Run_PSScriptAnalyzer
-  
+
 - task: PublishPipelineArtifact@1
   inputs:
     targetPath: '$(Build.SourcesDirectory)'
     artifact: 'Invoke-VsBuild'
     publishLocation: 'pipeline'
+  displayName: Uplaod scripts to Artifacts
 
