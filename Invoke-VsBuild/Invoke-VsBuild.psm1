@@ -61,7 +61,7 @@ class UserApplicationNotFoundException : System.ArgumentException {
  #>
 class InstallationInfo  {
     [string] $InstanceId
-    [System.Management.Automation.SemanticVersion] $SemanticVersion
+    [InvokeVsBuild.Utils.SemanticVersion] $SemanticVersion
     [string] $ProductId # e.g., Microsoft.VisualStudio.Product.Enterprise
     [string] $ProductLineVersion # e.g., 2019 (as in, Visual Studio 2019)
     [string] $ProductLine # e.g., Dev15
@@ -183,18 +183,18 @@ class VsDevCmd {
      #  Uses a standard SemVer2 regex to parse the string into parts before instantiating a SemanticVersion object. 
      #  If the version-string doesn't match the regex, then attempts instantiating via [string]$ver -> [version] -> [SemanticVersion] path.
      #>
-    [System.Management.Automation.SemanticVersion] static hidden MakeSemanticVersion([string]$ver) {
+    [InvokeVsBuild.Utils.SemanticVersion] static hidden MakeSemanticVersion([string]$ver) {
         [string]$semVerRegex = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
-        [System.Management.Automation.SemanticVersion]$semanticVersion = $null
+        [InvokeVsBuild.Utils.SemanticVersion]$semanticVersion = $null
 
         $m = [regex]::Match($ver, $semVerRegex)
         if ($m -and $m.Groups -and $m.Groups.Count -eq 6) {
             $semanticVersion = 
-                New-Object System.Management.Automation.SemanticVersion($m.Groups[1].Value, $m.Groups[2].Value, $m.Groups[3].Value, $m.Groups[4].Value, $m.Groups[5].Value)
+                New-Object InvokeVsBuild.Utils.SemanticVersion($m.Groups[1].Value, $m.Groups[2].Value, $m.Groups[3].Value, $m.Groups[4].Value, $m.Groups[5].Value)
         } else {
             # Try if the SemanticVersion object can be created via a [version] object
             try {
-                $semanticVersion = [System.Management.Automation.SemanticVersion][version]$ver
+                $semanticVersion = [InvokeVsBuild.Utils.SemanticVersion][version]$ver
             }
             catch{
                # Swallow the exception 
@@ -349,7 +349,7 @@ class VsDevCmd {
                     Break;
                 }
                 'ExactMatch' {
-                    [System.Management.Automation.SemanticVersion]$productDisplayVersionSemVer = [VsDevCmd]::MakeSemanticVersion($productDisplayVersion)
+                    [InvokeVsBuild.Utils.SemanticVersion]$productDisplayVersionSemVer = [VsDevCmd]::MakeSemanticVersion($productDisplayVersion)
                     $installs = $installs | Where-Object {
                         $_.SemanticVersion -eq $productDisplayVersionSemVer
                     }
@@ -357,7 +357,7 @@ class VsDevCmd {
                 }
 
                 'NewestGreaterThan' {
-                    [System.Management.Automation.SemanticVersion]$productDisplayVersionSemVer = [VsDevCmd]::MakeSemanticVersion($productDisplayVersion)
+                    [InvokeVsBuild.Utils.SemanticVersion]$productDisplayVersionSemVer = [VsDevCmd]::MakeSemanticVersion($productDisplayVersion)
 
 
                     $largest = $null 
