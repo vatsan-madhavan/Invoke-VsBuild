@@ -15,7 +15,7 @@ steps:
   name: Install_PSScriptAnalyzer
 
 - task: PowerShell@2
-  condition: eq("$(UpdateModuleVersion)", 'true')
+  condition: eq('$(UpdateModuleVersion)', 'true')
   inputs:
     filePath: 'eng\Update-Version.ps1'
     failOnStderr: true
@@ -32,7 +32,7 @@ steps:
   name: Run_PSScriptAnalyzer
 
 - task: PowerShell@2
-  condition: eq("$(UpdateModuleVersion)", 'true')
+  condition: eq('$(UpdateModuleVersion)', 'true')
   inputs:
    targetType: inline
    pwsh: true
